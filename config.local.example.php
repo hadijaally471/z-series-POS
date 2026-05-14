@@ -1,6 +1,6 @@
 <?php
-// Copy this file to config.local.php on Hostinger and fill in hPanel's MySQL details.
-// Do not use the local XAMPP root account on hosting.
+// Copy this file to config.local.php for your environment and fill in the correct MySQL details.
+// Keep config.local.php out of version control and never use the local XAMPP root account on hosting.
 
 define('APP_ENV', 'production');
 define('DB_HOST', 'localhost');

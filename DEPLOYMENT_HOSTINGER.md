@@ -32,6 +32,7 @@ define('DB_PASS', 'your_hostinger_db_password');
 define('DB_NAME', 'your_hostinger_db_name');
 ```
 
+Keep `config.local.php` on the server only and do not upload it to public source control.
 Do not use the XAMPP `root` user online.
 
 ## 4. First Login
