@@ -1,0 +1,9 @@
+Options -Indexes
+
+<FilesMatch "^(config\.local\.php|config\.local\.example\.php|database\.sql|README\.md|DEPLOYMENT_HOSTINGER\.md)$">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(env|ini|log|bak|sql)$">
+  Require all denied
+</FilesMatch>
