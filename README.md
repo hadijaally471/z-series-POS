@@ -28,13 +28,15 @@ Copy the `zseries-php` folder into:
 6. Click **Go** to import
 
 ### Step 4 — Configure Database
-Open `config.php` and update these values:
+Copy `config.local.example.php` to `config.local.php`, then update your local database values there:
 ```php
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');       // Your MySQL username
 define('DB_PASS', '');           // Your MySQL password
 define('DB_NAME', 'zseries_pos');
 ```
+
+The app will load `config.local.php` automatically when it exists, so you can keep local credentials out of version control.
 
 ### Step 5 — Access the System
 Open your browser and go to:
