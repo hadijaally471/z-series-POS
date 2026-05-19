@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $discount     = max(0, (float)($data['discount'] ?? 0));
     $customerId   = !empty($data['customerId']) ? (int)$data['customerId'] : null;
     $customerName = trim((string)($data['customerName'] ?? 'Walk-in')) ?: 'Walk-in';
+    $customerCity = sanitizeString($data['customerCity'] ?? '', 200);
     
     if (empty($cart)) {
         echo json_encode(['success' => false, 'message' => 'Cart is empty']);
@@ -40,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $subtotal = 0;
         $normalizedCart = [];
         if ($customerId) {
-            $customerStmt = $conn->prepare("SELECT id, name FROM customers WHERE id = ?");
+            $customerStmt = $conn->prepare("SELECT id, name, location FROM customers WHERE id = ?");
             $customerStmt->bind_param('i', $customerId);
             $customerStmt->execute();
             $customer = $customerStmt->get_result()->fetch_assoc();
@@ -48,6 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('Customer not found');
             }
             $customerName = $customer['name'];
+            if (empty($customerCity) && !empty($customer['location'])) {
+                $customerCity = $customer['location'];
+            }
         }
 
         $productStmt = $conn->prepare("SELECT id, name, stock, rejareja_price, jumla_price FROM products WHERE id = ? AND status = 'active' FOR UPDATE");
@@ -88,10 +92,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Discount cannot exceed subtotal');
         }
         $temp_receipt = 'TMP-' . bin2hex(random_bytes(6));
-        $stmt = $conn->prepare("INSERT INTO sales (receipt_number, customer_id, customer_name, price_type, subtotal, discount, total, payment_method, cashier_id, status) VALUES (?,?,?,?,?,?,?,?,?,?)");
+        if (empty($customerCity)) {
+            $customerCity = 'Arusha';
+        }
+        $stmt = $conn->prepare("INSERT INTO sales (receipt_number, customer_id, customer_name, customer_city, price_type, subtotal, discount, total, payment_method, cashier_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?)");
         $status = 'completed';
         $cashierId = (int)$_SESSION['user_id'];
-        $stmt->bind_param('sissdddsis', $temp_receipt, $customerId, $customerName, $priceType, $subtotal, $discount, $total, $payMethod, $cashierId, $status);
+        $stmt->bind_param('sisssdddsis', $temp_receipt, $customerId, $customerName, $customerCity, $priceType, $subtotal, $discount, $total, $payMethod, $cashierId, $status);
         $stmt->execute();
         $sale_id = $conn->insert_id;
 

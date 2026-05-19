@@ -5,13 +5,27 @@ requirePrivilege('inventory');
 
 // Handle add/edit/delete
 $msg = '';
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['export'] ?? '') === 'csv') {
+    requirePrivilege('inventory');
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename="inventory_products.csv"');
+    $out = fopen('php://output', 'w');
+    fputcsv($out, ['name', 'category', 'rejareja_price', 'jumla_price', 'stock', 'unit', 'low_stock_threshold']);
+    $stmt = $conn->prepare("SELECT p.name, c.name as category, p.rejareja_price, p.jumla_price, p.stock, p.unit, p.low_stock_threshold FROM products p LEFT JOIN categories c ON p.category_id=c.id WHERE p.status='active' ORDER BY c.name, p.name");
+    $stmt->execute();
+    $rows = $stmt->get_result();
+    while ($row = $rows->fetch_assoc()) {
+        fputcsv($out, [$row['name'], $row['category'], $row['rejareja_price'], $row['jumla_price'], $row['stock'], $row['unit'], $row['low_stock_threshold']]);
+    }
+    fclose($out);
+    exit;
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
     $action = $_POST['action'] ?? '';
     if ($action === 'add' || $action === 'edit') {
         $name       = sanitizeString($_POST['name'] ?? '', 200);
         $cat_id     = sanitizeInt($_POST['category_id'] ?? 0);
-        $sup_id     = !empty($_POST['supplier_id']) ? sanitizeInt($_POST['supplier_id']) : null;
         $rejareja   = sanitizeFloat($_POST['rejareja_price'] ?? 0);
         $jumla      = sanitizeFloat($_POST['jumla_price'] ?? 0);
         $stock      = sanitizeInt($_POST['stock'] ?? 0);
@@ -19,15 +33,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $threshold  = sanitizeInt($_POST['low_stock_threshold'] ?? 10);
         
         if ($action === 'add') {
-            $stmt = $conn->prepare("INSERT INTO products (name,category_id,supplier_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?,?)");
-            $stmt->bind_param('siiiddsi', $name,$cat_id,$sup_id,$rejareja,$jumla,$stock,$unit,$threshold);
+            $stmt = $conn->prepare("INSERT INTO products (name,category_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?)");
+            $stmt->bind_param('siddsii', $name,$cat_id,$rejareja,$jumla,$stock,$unit,$threshold);
             $stmt->execute();
             logActivity($conn, "Product added: $name", 'product');
             $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Product added successfully!</div>';
         } else {
             $id = (int)$_POST['id'];
-            $stmt = $conn->prepare("UPDATE products SET name=?,category_id=?,supplier_id=?,rejareja_price=?,jumla_price=?,stock=?,unit=?,low_stock_threshold=? WHERE id=?");
-            $stmt->bind_param('siiiddsii', $name,$cat_id,$sup_id,$rejareja,$jumla,$stock,$unit,$threshold,$id);
+            $stmt = $conn->prepare("UPDATE products SET name=?,category_id=?,rejareja_price=?,jumla_price=?,stock=?,unit=?,low_stock_threshold=? WHERE id=?");
+            $stmt->bind_param('siddsiii', $name,$cat_id,$rejareja,$jumla,$stock,$unit,$threshold,$id);
             $stmt->execute();
             logActivity($conn, "Product updated: $name", 'product');
             $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Product updated!</div>';
@@ -45,6 +59,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         logActivity($conn, "Product removed: ".$p['name'], 'product');
         $msg = '<div style="color:var(--warning);padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;margin-bottom:14px">⚠️ Product removed from inventory.</div>';
     }
+      if ($action === 'import') {
+        if (!isset($_FILES['import_file']) || $_FILES['import_file']['error'] !== UPLOAD_ERR_OK) {
+          $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Import failed. Please choose a valid CSV file.</div>';
+        } else {
+          $path = $_FILES['import_file']['tmp_name'];
+          $handle = fopen($path, 'r');
+          if ($handle === false) {
+            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Unable to read the uploaded file.</div>';
+          } else {
+            $conn->begin_transaction();
+            try {
+              $header = fgetcsv($handle);
+              $header_map = [];
+              if ($header) {
+                foreach ($header as $idx => $col) {
+                  $key = strtolower(trim((string)$col));
+                  $header_map[$key] = $idx;
+                }
+              }
+
+              $rows_imported = 0;
+              while (($row = fgetcsv($handle)) !== false) {
+                if (!array_filter($row)) {
+                  continue;
+                }
+                $name = $header ? ($row[$header_map['name'] ?? $header_map['product_name'] ?? 0] ?? '') : ($row[0] ?? '');
+                $category = $header ? ($row[$header_map['category'] ?? 1] ?? '') : ($row[1] ?? '');
+                $rejareja = $header ? ($row[$header_map['rejareja_price'] ?? 2] ?? 0) : ($row[2] ?? 0);
+                $jumla = $header ? ($row[$header_map['jumla_price'] ?? 3] ?? 0) : ($row[3] ?? 0);
+                $stock = $header ? ($row[$header_map['stock'] ?? 4] ?? 0) : ($row[4] ?? 0);
+                $unit = $header ? ($row[$header_map['unit'] ?? 5] ?? 'pcs') : ($row[5] ?? 'pcs');
+                $threshold = $header ? ($row[$header_map['low_stock_threshold'] ?? 6] ?? 10) : ($row[6] ?? 10);
+
+                $name = sanitizeString($name, 200);
+                $category = sanitizeString($category, 200);
+                if ($name === '') {
+                  continue;
+                }
+
+                $cat_id = 0;
+                if ($category !== '') {
+                  $stmt = $conn->prepare("SELECT id FROM categories WHERE name = ? LIMIT 1");
+                  $stmt->bind_param('s', $category);
+                  $stmt->execute();
+                  $cat = $stmt->get_result()->fetch_assoc();
+                  if ($cat) {
+                    $cat_id = (int)$cat['id'];
+                  } else {
+                    $stmt = $conn->prepare("INSERT INTO categories (name) VALUES (?)");
+                    $stmt->bind_param('s', $category);
+                    $stmt->execute();
+                    $cat_id = $conn->insert_id;
+                  }
+                }
+
+                $stmt = $conn->prepare("SELECT id FROM products WHERE name = ? LIMIT 1");
+                $stmt->bind_param('s', $name);
+                $stmt->execute();
+                $existing = $stmt->get_result()->fetch_assoc();
+                if ($existing) {
+                  $id = (int)$existing['id'];
+                  $stmt = $conn->prepare("UPDATE products SET category_id=?, rejareja_price=?, jumla_price=?, stock=?, unit=?, low_stock_threshold=? WHERE id=?");
+                  $stmt->bind_param('iddisii', $cat_id, $rejareja, $jumla, $stock, $unit, $threshold, $id);
+                  $stmt->execute();
+                } else {
+                  $stmt = $conn->prepare("INSERT INTO products (name,category_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?)");
+                  $stmt->bind_param('siddsii', $name, $cat_id, $rejareja, $jumla, $stock, $unit, $threshold);
+                  $stmt->execute();
+                }
+                $rows_imported++;
+              }
+              fclose($handle);
+              $conn->commit();
+              $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Imported ' . $rows_imported . ' products successfully.</div>';
+            } catch (Exception $e) {
+              $conn->rollback();
+              $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Import failed: ' . htmlspecialchars($e->getMessage()) . '</div>';
+            }
+          }
+        }
+      }
 }
 
   $search     = sanitizeString($_GET['search'] ?? '', 100);
@@ -67,12 +162,11 @@ if ($stock_filter === 'low')  $where[] = "p.stock <= p.low_stock_threshold AND p
 if ($stock_filter === 'out')  $where[] = "p.stock = 0";
 if ($stock_filter === 'ok')   $where[] = "p.stock > p.low_stock_threshold";
 
-$stmt = $conn->prepare("SELECT p.*, c.name as cat_name, s.name as sup_name FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE " . implode(' AND ', $where) . " ORDER BY c.name, p.name");
+$stmt = $conn->prepare("SELECT p.*, c.name as cat_name FROM products p LEFT JOIN categories c ON p.category_id=c.id WHERE " . implode(' AND ', $where) . " ORDER BY c.name, p.name");
 if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $products = $stmt->get_result();
 $categories = $conn->query("SELECT * FROM categories ORDER BY name");
-$suppliers  = $conn->query("SELECT * FROM suppliers WHERE status='active' ORDER BY name");
 $total_products = $conn->query("SELECT COUNT(*) as c FROM products WHERE status='active'")->fetch_assoc()['c'];
 $low_count  = $conn->query("SELECT COUNT(*) as c FROM products WHERE stock<=low_stock_threshold AND stock>0 AND status='active'")->fetch_assoc()['c'];
 $out_count  = $conn->query("SELECT COUNT(*) as c FROM products WHERE stock=0 AND status='active'")->fetch_assoc()['c'];
@@ -111,11 +205,14 @@ $ok_count   = $total_products - $low_count - $out_count;
 <div class="card">
   <div class="card-header">
     <span class="card-title">All Products (<?= $products->num_rows ?>)</span>
-    <span class="card-action">Export CSV</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a class="card-action" href="?export=csv">Export CSV</a>
+      <button type="button" class="card-action" onclick="openModal('import-products-modal')">Import CSV</button>
+    </div>
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>#</th><th>Product Name</th><th>Category</th><th>Rejareja Price</th><th>Jumla Price</th><th>Stock</th><th>Unit</th><th>Supplier</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th>#</th><th>Product Name</th><th>Category</th><th>Rejareja Price</th><th>Jumla Price</th><th>Stock</th><th>Unit</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         <?php $i=1; while($p = $products->fetch_assoc()): ?>
         <tr>
@@ -126,28 +223,56 @@ $ok_count   = $total_products - $low_count - $out_count;
           <td class="text-purple"><?= tzs($p['jumla_price']) ?></td>
           <td class="<?= $p['stock']==0?'text-danger':($p['stock']<=$p['low_stock_threshold']?'text-warning':'text-success') ?>"><?= $p['stock'] ?></td>
           <td><?= htmlspecialchars($p['unit']) ?></td>
-          <td><?= htmlspecialchars($p['sup_name'] ?? '—') ?></td>
           <td>
             <?php if($p['stock']==0): ?><span class="badge badge-danger">Out of Stock</span>
             <?php elseif($p['stock']<=$p['low_stock_threshold']): ?><span class="badge badge-warning">Low Stock</span>
             <?php else: ?><span class="badge badge-success">In Stock</span><?php endif; ?>
           </td>
           <td>
-            <button class="btn btn-outline btn-sm" onclick='editProduct(<?= json_encode($p) ?>)'>Edit</button>
-            <form method="POST" style="display:inline" onsubmit="return confirm('Remove this product?')">
-              <?= csrfInput() ?>
-              <input type="hidden" name="action" value="delete"/>
-              <input type="hidden" name="id" value="<?= $p['id'] ?>"/>
-              <button type="submit" class="btn btn-danger btn-sm">Del</button>
-            </form>
+            <div class="action-buttons">
+              <button class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='editProduct(<?= json_encode($p) ?>)'>✏️</button>
+              <form method="POST" onsubmit="return confirm('Remove this product?')">
+                <?= csrfInput() ?>
+                <input type="hidden" name="action" value="delete"/>
+                <input type="hidden" name="id" value="<?= $p['id'] ?>"/>
+                <button type="submit" class="btn btn-danger btn-sm" title="Delete" aria-label="Delete">🗑️</button>
+              </form>
+            </div>
           </td>
         </tr>
         <?php endwhile; ?>
         <?php if($products->num_rows===0): ?>
-        <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">No products found</td></tr>
+        <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">No products found</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div class="modal-overlay" id="import-products-modal" data-dismiss="true">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Import Products (CSV)</span>
+      <button class="modal-close" onclick="closeModal('import-products-modal')">✕</button>
+    </div>
+    <form method="POST" enctype="multipart/form-data">
+      <?= csrfInput() ?>
+      <input type="hidden" name="action" value="import"/>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">CSV File</label>
+          <input type="file" name="import_file" class="form-control" accept=".csv" required/>
+        </div>
+        <div class="form-group" style="font-size:12px;color:var(--text3)">
+          Columns: name, category, rejareja_price, jumla_price, stock, unit, low_stock_threshold
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('import-products-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Import</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -164,7 +289,7 @@ $ok_count   = $total_products - $low_count - $out_count;
       <input type="hidden" name="id" id="product-id"/>
       <div class="modal-body">
         <div class="form-row">
-          <div class="form-group"><label class="form-label">Product Name *</label><input name="name" id="p-name" class="form-control" placeholder="e.g. Floor Tile 60x60" required/></div>
+            <div class="form-group"><label class="form-label">Product Name *</label><input name="name" id="p-name" class="form-control" placeholder="e.g. Master 23 Tiles and Sink Cleaner 1L" required/></div>
           <div class="form-group"><label class="form-label">Category *</label>
             <select name="category_id" id="p-cat" class="form-control" required>
               <option value="">Select category</option>
@@ -191,14 +316,6 @@ $ok_count   = $total_products - $low_count - $out_count;
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label class="form-label">Supplier</label>
-            <select name="supplier_id" id="p-sup" class="form-control">
-              <option value="">Select supplier</option>
-              <?php $suppliers->data_seek(0); while($s=$suppliers->fetch_assoc()): ?>
-              <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
-              <?php endwhile; ?>
-            </select>
-          </div>
           <div class="form-group"><label class="form-label">Low Stock Alert Threshold</label><input type="number" name="low_stock_threshold" id="p-thresh" class="form-control" value="10"/></div>
         </div>
       </div>
@@ -223,7 +340,6 @@ function editProduct(p){
   document.getElementById('p-jum').value = p.jumla_price;
   document.getElementById('p-stock').value = p.stock;
   document.getElementById('p-unit').value = p.unit;
-  document.getElementById('p-sup').value = p.supplier_id||'';
   document.getElementById('p-thresh').value = p.low_stock_threshold;
   openModal('add-product-modal');
 }

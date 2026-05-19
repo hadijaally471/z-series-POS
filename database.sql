@@ -74,6 +74,7 @@ CREATE TABLE sales (
   receipt_number VARCHAR(20) UNIQUE NOT NULL,
   customer_id INT,
   customer_name VARCHAR(150) DEFAULT 'Walk-in',
+  customer_city VARCHAR(200),
   price_type ENUM('rejareja','jumla') DEFAULT 'rejareja',
   subtotal DECIMAL(12,2) DEFAULT 0,
   discount DECIMAL(12,2) DEFAULT 0,
@@ -241,7 +242,7 @@ INSERT INTO employees (name, role, phone, salary, start_date, status) VALUES
 INSERT INTO settings (setting_key, setting_value) VALUES
 ('business_name', 'Z-Series Products'),
 ('business_phone', '+255 712 000 000'),
-('business_address', 'Dar es Salaam, Tanzania'),
+('business_address', 'Arusha, Tanzania'),
 ('business_email', 'info@zseries.co.tz'),
 ('currency', 'TZS'),
 ('low_stock_threshold', '10'),

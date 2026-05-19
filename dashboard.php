@@ -44,25 +44,21 @@ $low_products = $conn->query("SELECT p.*, c.name as cat_name FROM products p LEF
     <div class="stat-label">Today's Revenue</div>
     <div class="stat-value"><?= tzs($today_revenue) ?></div>
     <div class="stat-sub">Sales completed today</div>
-    <div class="stat-icon">💰</div>
   </div>
   <div class="stat-card green">
     <div class="stat-label">Today's Transactions</div>
     <div class="stat-value"><?= $today_sales ?></div>
     <div class="stat-sub">Receipts issued today</div>
-    <div class="stat-icon">🛒</div>
   </div>
   <div class="stat-card amber">
     <div class="stat-label">Low Stock Items</div>
     <div class="stat-value"><?= $low_stock ?></div>
     <div class="stat-sub"><a href="inventory.php" class="stat-link warning">Review inventory</a></div>
-    <div class="stat-icon">⚠️</div>
   </div>
   <div class="stat-card red">
     <div class="stat-label">Total Outstanding Debts</div>
     <div class="stat-value"><?= tzs($total_debt) ?></div>
     <div class="stat-sub"><a href="debts.php" class="stat-link danger">View debtors</a></div>
-    <div class="stat-icon">💸</div>
   </div>
 </div>
 

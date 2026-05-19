@@ -58,6 +58,23 @@ $stmt->bind_param('ss', $month_start, $month_end);
 $stmt->execute();
 $top_products = $stmt->get_result();
 
+// Sales by city
+$stmt = $conn->prepare("SELECT COALESCE(NULLIF(s.customer_city,''), NULLIF(c.location,''), 'Arusha') as city, COUNT(*) as cnt, COALESCE(SUM(s.total),0) as total FROM sales s LEFT JOIN customers c ON s.customer_id=c.id WHERE s.status='completed' AND DATE(s.created_at) BETWEEN ? AND ? GROUP BY city ORDER BY total DESC");
+$stmt->bind_param('ss', $month_start, $month_end);
+$stmt->execute();
+$city_sales_revenue = $stmt->get_result();
+
+$stmt = $conn->prepare("SELECT COALESCE(NULLIF(s.customer_city,''), NULLIF(c.location,''), 'Arusha') as city, COUNT(*) as cnt, COALESCE(SUM(s.total),0) as total FROM sales s LEFT JOIN customers c ON s.customer_id=c.id WHERE s.status='completed' AND DATE(s.created_at) BETWEEN ? AND ? GROUP BY city ORDER BY cnt DESC, total DESC");
+$stmt->bind_param('ss', $month_start, $month_end);
+$stmt->execute();
+$city_sales_count = $stmt->get_result();
+
+// Leading product per city
+$stmt = $conn->prepare("SELECT city, product_name, total_qty, total_revenue FROM (SELECT COALESCE(NULLIF(s.customer_city,''), NULLIF(c.location,''), 'Arusha') as city, si.product_name, SUM(si.qty) as total_qty, SUM(si.total) as total_revenue, ROW_NUMBER() OVER (PARTITION BY COALESCE(NULLIF(s.customer_city,''), NULLIF(c.location,''), 'Arusha') ORDER BY SUM(si.total) DESC) as rn FROM sales s JOIN sale_items si ON si.sale_id=s.id LEFT JOIN customers c ON s.customer_id=c.id WHERE s.status='completed' AND DATE(s.created_at) BETWEEN ? AND ? GROUP BY city, si.product_name) x WHERE rn = 1 ORDER BY total_revenue DESC");
+$stmt->bind_param('ss', $month_start, $month_end);
+$stmt->execute();
+$city_product_leaders = $stmt->get_result();
+
 $daily_labels   = json_encode(array_column($daily, 'date'));
 $daily_revenues = json_encode(array_column($daily, 'revenue'));
 
@@ -69,11 +86,12 @@ $pay_rows = []; while($r=$pay_data->fetch_assoc()) $pay_rows[]=$r;
 $pay_labels = json_encode(array_column($pay_rows,'payment_method'));
 $pay_totals = json_encode(array_column($pay_rows,'total'));
 ?>
-<div style="margin-bottom:16px">
+<div style="margin-bottom:16px" class="no-print">
   <form method="GET" style="display:flex;gap:10px;align-items:center">
     <label style="font-size:12px;color:var(--text2)">Month:</label>
     <input type="month" name="month" value="<?=htmlspecialchars($month)?>" class="form-control" style="width:180px"/>
     <button type="submit" class="btn btn-primary">View Report</button>
+    <button type="button" class="btn btn-outline" onclick="window.print()">Download PDF</button>
   </form>
 </div>
 <div class="stats-grid">
@@ -95,6 +113,17 @@ $pay_totals = json_encode(array_column($pay_rows,'total'));
   <div class="table-wrap reports-table-wrap"><table><thead><tr><th>#</th><th>Product</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
   <tbody><?php $i=1; while($p=$top_products->fetch_assoc()):?><tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($p['product_name'])?></td><td><?=number_format($p['total_qty'])?></td><td class="text-success"><?=tzs($p['total_revenue'])?></td></tr><?php endwhile;?></tbody></table></div></div>
 </div>
+<div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Sales by City (Highest Revenue)</span></div>
+<div class="table-wrap reports-table-wrap"><table><thead><tr><th>#</th><th>City</th><th>Transactions</th><th>Revenue</th></tr></thead>
+<tbody><?php $i=1; while($row=$city_sales_revenue->fetch_assoc()):?><tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($row['city'])?></td><td><?=number_format($row['cnt'])?></td><td class="text-success"><?=tzs($row['total'])?></td></tr><?php endwhile; if($city_sales_revenue->num_rows===0):?><tr><td colspan="4" style="text-align:center;padding:22px;color:var(--text3)">No city sales data for this month</td></tr><?php endif;?></tbody></table></div></div>
+
+<div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Sales by City (Most Transactions)</span></div>
+<div class="table-wrap reports-table-wrap"><table><thead><tr><th>#</th><th>City</th><th>Transactions</th><th>Revenue</th></tr></thead>
+<tbody><?php $i=1; while($row=$city_sales_count->fetch_assoc()):?><tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($row['city'])?></td><td><?=number_format($row['cnt'])?></td><td class="text-success"><?=tzs($row['total'])?></td></tr><?php endwhile; if($city_sales_count->num_rows===0):?><tr><td colspan="4" style="text-align:center;padding:22px;color:var(--text3)">No city sales data for this month</td></tr><?php endif;?></tbody></table></div></div>
+
+<div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Top Product by City (Highest Revenue)</span></div>
+<div class="table-wrap reports-table-wrap"><table><thead><tr><th>#</th><th>City</th><th>Product</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
+<tbody><?php $i=1; while($row=$city_product_leaders->fetch_assoc()):?><tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($row['city'])?></td><td><?=htmlspecialchars($row['product_name'])?></td><td><?=number_format($row['total_qty'])?></td><td class="text-success"><?=tzs($row['total_revenue'])?></td></tr><?php endwhile; if($city_product_leaders->num_rows===0):?><tr><td colspan="5" style="text-align:center;padding:22px;color:var(--text3)">No city/product sales data for this month</td></tr><?php endif;?></tbody></table></div></div>
 <?php
 $extra_js = <<<JS
 <script>

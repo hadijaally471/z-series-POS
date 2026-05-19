@@ -8,16 +8,20 @@ $products_result = $conn->query("SELECT p.*, c.name as cat_name FROM products p 
 $products = [];
 while ($r = $products_result->fetch_assoc()) $products[] = $r;
 $customers_result = $conn->query("SELECT * FROM customers ORDER BY name");
+$business_address = getSetting($conn,'business_address');
+$cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Moshi', 'Mwanza', 'Iringa', 'Morogoro', 'Tanga', 'Kigoma', 'Singida', 'Tabora'];
 ?>
 <div class="pos-layout">
   <!-- LEFT: Products -->
   <div class="pos-left">
     <input type="text" class="pos-search" id="product-search" placeholder="🔍  Search products by name..." oninput="filterProducts(this.value)"/>
     <div class="pos-cats">
-      <button class="pos-cat active" onclick="setCat('all',this)">All</button>
-      <?php $categories->data_seek(0); while($cat = $categories->fetch_assoc()): ?>
-      <button class="pos-cat" onclick="setCat('<?= $cat['id'] ?>',this)"><?= htmlspecialchars($cat['name']) ?></button>
-      <?php endwhile; ?>
+      <select class="pos-cat-select" id="pos-cat-select" onchange="setCatSelect(this.value)">
+        <option value="all">All Categories</option>
+        <?php $categories->data_seek(0); while($cat = $categories->fetch_assoc()): ?>
+        <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+        <?php endwhile; ?>
+      </select>
     </div>
     <div class="pos-products" id="pos-products-grid">
       <?php foreach($products as $p): ?>
@@ -57,9 +61,16 @@ $customers_result = $conn->query("SELECT * FROM customers ORDER BY name");
       <select class="form-control" id="customer-select" style="font-size:12px">
         <option value="">Walk-in Customer</option>
         <?php $customers_result->data_seek(0); while($c = $customers_result->fetch_assoc()): ?>
-        <option value="<?= $c['id'] ?>" data-type="<?= $c['type'] ?>"><?= htmlspecialchars($c['name']) ?> (<?= ucfirst($c['type']) ?>)</option>
+        <option value="<?= $c['id'] ?>" data-type="<?= $c['type'] ?>" data-location="<?= htmlspecialchars($c['location'] ?? '') ?>"><?= htmlspecialchars($c['name']) ?> (<?= ucfirst($c['type']) ?>)</option>
         <?php endwhile; ?>
       </select>
+      <div style="margin-top:8px">
+        <select class="form-control" id="customer-city" style="font-size:12px">
+          <?php foreach ($cities_list as $city): ?>
+          <option value="<?= htmlspecialchars($city) ?>" <?= $city === 'Arusha' ? 'selected' : '' ?>><?= htmlspecialchars($city) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
     </div>
 
     <!-- Price type -->
@@ -114,11 +125,12 @@ $customers_result = $conn->query("SELECT * FROM customers ORDER BY name");
 $extra_js = <<<'JS'
 <script>
 let cart = [], priceType = 'rejareja', payMethod = 'cash';
+const businessAddress = %s;
 
 function fmt(n){return 'TZS '+(+n).toLocaleString();}
 
 function filterProducts(q){
-  const cat = document.querySelector('.pos-cat.active').dataset.cat||'all';
+  const cat = document.getElementById('pos-cat-select')?.value || 'all';
   document.querySelectorAll('.pos-product').forEach(p=>{
     const name = p.dataset.name.toLowerCase();
     const matchQ = name.includes(q.toLowerCase());
@@ -127,10 +139,7 @@ function filterProducts(q){
   });
 }
 
-function setCat(cat, el){
-  document.querySelectorAll('.pos-cat').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
-  el.dataset.cat = cat;
+function setCatSelect(cat){
   const q = document.getElementById('product-search').value;
   document.querySelectorAll('.pos-product').forEach(p=>{
     const matchC = cat==='all'||p.dataset.cat===cat;
@@ -150,6 +159,14 @@ function setPayMethod(m){
   payMethod = m;
   ['cash','mpesa','debt'].forEach(x=>document.getElementById('pay-'+x).classList.toggle('active',x===m));
 }
+
+document.getElementById('customer-select')?.addEventListener('change', (e) => {
+  const selected = e.target.selectedOptions[0];
+  const loc = selected?.dataset?.location || '';
+  if (loc) {
+    document.getElementById('customer-city').value = loc;
+  }
+});
 
 function addToCart(el){
   if(el.classList.contains('out-of-stock')){showToast('Out of stock!','error');return;}
@@ -206,12 +223,13 @@ function processSale(){
   const total = Math.max(0,sub-disc);
   const customerId = document.getElementById('customer-select').value;
   const customerName = document.getElementById('customer-select').selectedOptions[0].text;
+  const customerCity = document.getElementById('customer-city').value;
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
   fetch('api/sales.php', {
     method:'POST',
     headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-    body: JSON.stringify({cart,priceType,payMethod,discount:disc,total,sub,customerId,customerName:customerId?customerName:'Walk-in'})
+    body: JSON.stringify({cart,priceType,payMethod,discount:disc,total,sub,customerId,customerName:customerId?customerName:'Walk-in',customerCity})
   })
   .then(r=>r.json())
   .then(data=>{
@@ -231,7 +249,7 @@ function showReceipt(rno, customer, total, disc, sub){
     <div class="receipt-box">
       <div class="receipt-header">
         <div class="receipt-company">Z-SERIES PRODUCTS</div>
-        <div class="receipt-sub">Dar es Salaam, Tanzania</div>
+        <div class="receipt-sub">${businessAddress}</div>
         <div class="receipt-sub">+255 755 059 387</div>
       </div>
       <div class="receipt-row"><span>Receipt:</span><span>${rno}</span></div>
@@ -311,5 +329,6 @@ processSale = function(){
 };
 </script>
 JS;
+$extra_js = sprintf($extra_js, json_encode($business_address, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 require_once 'includes/footer.php';
 ?>

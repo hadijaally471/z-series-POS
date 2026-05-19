@@ -41,6 +41,7 @@ if(isset($_GET['view'])){
 }
 $business_name = getSetting($conn,'business_name');
 $business_phone = getSetting($conn,'business_phone');
+$business_address = getSetting($conn,'business_address');
 $receipt_phone = '+255 755 059 387';
 $receipt_footer = getSetting($conn,'receipt_footer');
 ?>
@@ -66,7 +67,7 @@ $receipt_footer = getSetting($conn,'receipt_footer');
 <div class="card-body receipt-preview-body">
 <?php if($selected_sale): ?>
 <div class="receipt-box" id="print-receipt">
-  <div class="receipt-header"><div class="receipt-company"><?=htmlspecialchars($business_name)?></div><div class="receipt-sub">Dar es Salaam, Tanzania</div><div class="receipt-sub"><?=htmlspecialchars($receipt_phone)?></div></div>
+  <div class="receipt-header"><div class="receipt-company"><?=htmlspecialchars($business_name)?></div><div class="receipt-sub"><?=htmlspecialchars($business_address)?></div><div class="receipt-sub"><?=htmlspecialchars($receipt_phone)?></div></div>
   <div class="receipt-row"><span>Receipt:</span><span><?=htmlspecialchars($selected_sale['receipt_number'])?></span></div>
   <div class="receipt-row"><span>Date:</span><span><?=date('d/m/Y H:i',strtotime($selected_sale['created_at']))?></span></div>
   <div class="receipt-row"><span>Customer:</span><span><?=htmlspecialchars($selected_sale['customer_name'])?></span></div>

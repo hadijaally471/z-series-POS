@@ -176,6 +176,13 @@ textarea.form-control{resize:vertical;min-height:80px}
 .receipt-open-link{display:inline-block;margin-top:6px;padding:6px 10px;border-radius:8px;background:transparent;border:1px solid rgba(124,58,237,0.14);color:var(--purple2);font-weight:800;font-size:12px;text-decoration:none}
 .receipt-open-link:hover{background:rgba(124,58,237,0.06);border-color:var(--purple);color:var(--purple)}
 .table-wrap td .btn-outline.btn-sm{white-space:nowrap}
+.table-wrap td .btn,
+.table-wrap td form{display:inline-flex;align-items:center}
+.table-wrap td form{margin-left:6px}
+.table-wrap td form button{margin:0}
+.action-buttons{display:inline-flex;gap:8px;align-items:center}
+.action-buttons .btn-sm{width:36px;height:32px;justify-content:center;padding:0}
+.action-buttons form{margin:0}
 
 /* MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center}
@@ -209,19 +216,19 @@ textarea.form-control{resize:vertical;min-height:80px}
 .pos-left{display:flex;flex-direction:column;gap:12px;overflow:hidden}
 .pos-search{padding:12px 16px;background:linear-gradient(180deg,rgba(26,22,40,0.92),rgba(19,16,30,0.98));border:1px solid var(--border2);border-radius:12px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;width:100%;box-shadow:0 10px 22px rgba(0,0,0,0.1)}
 .pos-search:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,58,237,0.08),0 10px 22px rgba(0,0,0,0.1)}
-.pos-cats{display:flex;gap:8px;flex-wrap:wrap}
-.pos-cat{padding:7px 14px;border-radius:999px;border:1px solid var(--border2);background:rgba(255,255,255,0.02);color:var(--text2);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.18s}
-.pos-cat.active,.pos-cat:hover{background:var(--purple);border-color:var(--purple);color:white}
-.pos-products{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;overflow-y:auto;flex:1}
-.pos-product{background:linear-gradient(180deg,rgba(22,18,42,0.96),rgba(17,14,28,0.98));border:1px solid var(--border2);border-radius:14px;padding:14px;cursor:pointer;transition:all 0.18s;box-shadow:0 12px 24px rgba(0,0,0,0.14)}
+.pos-cats{display:flex;gap:8px;align-items:center}
+.pos-cat-select{width:100%;max-width:420px;padding:8px 12px;border-radius:12px;border:1px solid var(--border2);background:rgba(255,255,255,0.02);color:var(--text2);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.18s, box-shadow 0.18s}
+.pos-cat-select:focus{border-color:var(--purple);box-shadow:0 0 0 2px rgba(124,58,237,0.18)}
+.pos-products{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;overflow-y:auto;flex:1}
+.pos-product{background:linear-gradient(180deg,rgba(22,18,42,0.96),rgba(17,14,28,0.98));border:1px solid var(--border2);border-radius:12px;padding:10px;cursor:pointer;transition:all 0.18s;box-shadow:0 10px 20px rgba(0,0,0,0.12)}
 .pos-product:hover{border-color:var(--purple);background:rgba(124,58,237,0.06);transform:translateY(-2px)}
 .pos-product.out-of-stock{opacity:0.5;cursor:not-allowed}
-.pos-product-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
-.pos-product-cat{font-size:10px;color:var(--text3);margin-bottom:8px}
+.pos-product-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
+.pos-product-cat{font-size:9px;color:var(--text3);margin-bottom:6px}
 .pos-product-prices{display:flex;flex-direction:column;gap:2px}
-.pos-product-price{font-size:11px;color:var(--text2)}
+.pos-product-price{font-size:10px;color:var(--text2)}
 .pos-product-price span{color:var(--purple2);font-weight:700}
-.pos-product-stock{font-size:10px;color:var(--text3);margin-top:6px}
+.pos-product-stock{font-size:9px;color:var(--text3);margin-top:5px}
 .pos-product-stock.low{color:var(--warning)}
 .pos-product-stock.out{color:var(--danger)}
 .pos-right{background:linear-gradient(180deg,rgba(22,18,42,0.96),rgba(19,16,30,0.98));border:1px solid var(--border2);border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 14px 30px rgba(0,0,0,0.16)}
@@ -279,7 +286,7 @@ textarea.form-control{resize:vertical;min-height:80px}
 .receipt-total{font-weight:700;font-size:14px;border-top:2px solid #111;padding-top:8px;margin-top:8px}
 .receipt-footer{text-align:center;margin-top:12px;font-size:10px;color:#666}
 @media print{
-  .sidebar,.topbar,.filter-bar,.btn:not(.no-hide),.modal-overlay{display:none!important}
+  .sidebar,.topbar,.filter-bar,.btn:not(.no-hide),.modal-overlay,.no-print{display:none!important}
   .main{margin-left:0}
   .receipt-box{border:none;box-shadow:none;background:white}
 }
