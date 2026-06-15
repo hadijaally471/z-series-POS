@@ -81,11 +81,13 @@ CREATE TABLE sales (
   total DECIMAL(12,2) DEFAULT 0,
   payment_method ENUM('cash','mpesa','debt','card') DEFAULT 'cash',
   cashier_id INT,
+  sales_rep_id INT,
   status ENUM('completed','cancelled','refunded') DEFAULT 'completed',
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES customers(id),
-  FOREIGN KEY (cashier_id) REFERENCES users(id)
+  FOREIGN KEY (cashier_id) REFERENCES users(id),
+  FOREIGN KEY (sales_rep_id) REFERENCES employees(id) ON DELETE SET NULL
 );
 
 -- SALE ITEMS

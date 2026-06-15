@@ -8,6 +8,7 @@ $products_result = $conn->query("SELECT p.*, c.name as cat_name FROM products p 
 $products = [];
 while ($r = $products_result->fetch_assoc()) $products[] = $r;
 $customers_result = $conn->query("SELECT * FROM customers ORDER BY name");
+$sales_reps = $conn->query("SELECT id, name, role FROM employees WHERE status='active' ORDER BY name");
 $business_address = getSetting($conn,'business_address');
 $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Moshi', 'Mwanza', 'Iringa', 'Morogoro', 'Tanga', 'Kigoma', 'Singida', 'Tabora'];
 ?>
@@ -69,6 +70,14 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
           <?php foreach ($cities_list as $city): ?>
           <option value="<?= htmlspecialchars($city) ?>" <?= $city === 'Arusha' ? 'selected' : '' ?>><?= htmlspecialchars($city) ?></option>
           <?php endforeach; ?>
+        </select>
+      </div>
+      <div style="margin-top:8px">
+        <select class="form-control" id="sales-rep-select" style="font-size:12px">
+          <option value="">— Sales Rep (optional) —</option>
+          <?php while($rep = $sales_reps->fetch_assoc()): ?>
+          <option value="<?= $rep['id'] ?>"><?= htmlspecialchars($rep['name']) ?> (<?= htmlspecialchars($rep['role']) ?>)</option>
+          <?php endwhile; ?>
         </select>
       </div>
     </div>
@@ -224,27 +233,32 @@ function processSale(){
   const customerId = document.getElementById('customer-select').value;
   const customerName = document.getElementById('customer-select').selectedOptions[0].text;
   const customerCity = document.getElementById('customer-city').value;
+  const salesRepId = document.getElementById('sales-rep-select').value;
+  const salesRepName = salesRepId ? document.getElementById('sales-rep-select').selectedOptions[0].text : '';
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
   fetch('api/sales.php', {
     method:'POST',
     headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-    body: JSON.stringify({cart,priceType,payMethod,discount:disc,total,sub,customerId,customerName:customerId?customerName:'Walk-in',customerCity})
+    body: JSON.stringify({cart,priceType,payMethod,discount:disc,total,sub,customerId,customerName:customerId?customerName:'Walk-in',customerCity,salesRepId})
   })
   .then(r=>r.json())
   .then(data=>{
     if(data.success){
-      showReceipt(data.receipt_number, customerName, total, disc, sub);
+      showReceipt(data.receipt_number, customerName, total, disc, sub, salesRepName);
       cart=[];renderCart();
+      localStorage.removeItem(POS_STORAGE_KEY);
       document.getElementById('discount-input').value=0;
       document.getElementById('customer-select').value='';
+      document.getElementById('sales-rep-select').value='';
     } else showToast(data.message||'Error!','error');
   }).catch(()=>showToast('Connection error!','error'));
 }
 
-function showReceipt(rno, customer, total, disc, sub){
+function showReceipt(rno, customer, total, disc, sub, salesRepName){
   const date = new Date().toLocaleString('en-TZ');
   const items = cart.map(i=>`<div class="receipt-row"><span>${i.name} x${i.qty}</span><span>${fmt(i[priceType]*i.qty)}</span></div>`).join('');
+  const repLine = salesRepName ? `<div class="receipt-row"><span>Sales Rep:</span><span>${salesRepName}</span></div>` : '';
   document.getElementById('receipt-content').innerHTML = `
     <div class="receipt-box">
       <div class="receipt-header">
@@ -255,6 +269,7 @@ function showReceipt(rno, customer, total, disc, sub){
       <div class="receipt-row"><span>Receipt:</span><span>${rno}</span></div>
       <div class="receipt-row"><span>Date:</span><span>${date}</span></div>
       <div class="receipt-row"><span>Customer:</span><span>${customer}</span></div>
+      ${repLine}
       <div class="receipt-row"><span>Payment:</span><span>${payMethod.toUpperCase()}</span></div>
       <div class="receipt-row"><span>Type:</span><span>${priceType.toUpperCase()}</span></div>
       <hr class="receipt-divider"/>
@@ -280,10 +295,11 @@ function savePosState(){
       priceType: priceType,
       payMethod: payMethod,
       discount: document.getElementById('discount-input') ? document.getElementById('discount-input').value : 0,
-      customer: document.getElementById('customer-select') ? document.getElementById('customer-select').value : ''
+      customer: document.getElementById('customer-select') ? document.getElementById('customer-select').value : '',
+      salesRep: document.getElementById('sales-rep-select') ? document.getElementById('sales-rep-select').value : ''
     };
     localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(state));
-  }catch(e){console.error('savePosState failed', e);} 
+  }catch(e){console.error('savePosState failed', e);}
 }
 
 function loadPosState(){
@@ -296,13 +312,13 @@ function loadPosState(){
     if(s.payMethod) payMethod = s.payMethod;
     if(document.getElementById('discount-input') && typeof s.discount !== 'undefined') document.getElementById('discount-input').value = s.discount;
     if(document.getElementById('customer-select') && typeof s.customer !== 'undefined') document.getElementById('customer-select').value = s.customer;
-    // apply UI for price type and pay method
+    if(document.getElementById('sales-rep-select') && typeof s.salesRep !== 'undefined') document.getElementById('sales-rep-select').value = s.salesRep;
     if(priceType) {
       document.getElementById('btn-rejareja').classList.toggle('active', priceType==='rejareja');
       document.getElementById('btn-jumla').classList.toggle('active', priceType==='jumla');
     }
     ['cash','mpesa','debt'].forEach(x=>{ if(document.getElementById('pay-'+x)) document.getElementById('pay-'+x).classList.toggle('active', payMethod===x); });
-  }catch(e){console.error('loadPosState failed', e);} 
+  }catch(e){console.error('loadPosState failed', e);}
 }
 
 // persist on every cart render and on relevant changes
@@ -322,11 +338,7 @@ document.addEventListener('DOMContentLoaded', function(){ loadPosState(); render
 
 // clear storage after successful sale
 const orig_processSale = processSale;
-processSale = function(){
-  orig_processSale();
-  // server response clears cart inside then(); but also remove storage here to be safe
-  localStorage.removeItem(POS_STORAGE_KEY);
-};
+processSale = function(){ orig_processSale(); };
 </script>
 JS;
 $extra_js = sprintf($extra_js, json_encode($business_address, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));

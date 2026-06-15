@@ -70,6 +70,7 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
   <div class="sidebar-section">Management</div>
   <?php if(hasPrivilege('reports')): ?>
   <a href="reports.php" class="nav-item <?= $current_page==='reports'?'active':'' ?>"><span class="nav-icon">📈</span> Reports</a>
+  <a href="cashier_sales.php" class="nav-item <?= $current_page==='cashier_sales'?'active':'' ?>"><span class="nav-icon">🧑‍💼</span> Sales Rep Report</a>
   <?php endif; ?>
   <?php if(hasPrivilege('receipts')): ?>
   <a href="receipts.php" class="nav-item <?= $current_page==='receipts'?'active':'' ?>"><span class="nav-icon">🧾</span> Receipts</a>

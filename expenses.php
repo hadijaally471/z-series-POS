@@ -22,20 +22,19 @@ $month_total = $conn->query("SELECT COALESCE(SUM(amount),0) as v FROM expenses W
 $today_total = $conn->query("SELECT COALESCE(SUM(amount),0) as v FROM expenses WHERE expense_date='$today'")->fetch_assoc()['v'];
 $cat_top = $conn->query("SELECT category, SUM(amount) as total FROM expenses GROUP BY category ORDER BY total DESC LIMIT 1")->fetch_assoc();
 $expenses = $conn->query("SELECT * FROM expenses ORDER BY expense_date DESC, created_at DESC LIMIT 50");
-$cat_icons = ['transport'=>'🚚','utilities'=>'⚡','staff'=>'👷','raw_materials'=>'🧪','rent'=>'🏢','maintenance'=>'🔧','other'=>'📌'];
 ?>
 <div class="stats-grid">
-  <div class="stat-card red"><div class="stat-label">This Month</div><div class="stat-value"><?=tzs($month_total)?></div><div class="stat-icon">💸</div></div>
-  <div class="stat-card amber"><div class="stat-label">Today</div><div class="stat-value"><?=tzs($today_total)?></div><div class="stat-icon">📅</div></div>
-  <div class="stat-card purple"><div class="stat-label">Top Category</div><div class="stat-value"><?=ucwords(str_replace('_',' ',$cat_top['category']??'N/A'))?></div><div class="stat-icon">📊</div></div>
-  <div class="stat-card green"><div class="stat-label">Top Category Total</div><div class="stat-value"><?=tzs($cat_top['total']??0)?></div><div class="stat-icon">💰</div></div>
+  <div class="stat-card red"><div class="stat-label">This Month</div><div class="stat-value"><?=tzs($month_total)?></div></div>
+  <div class="stat-card amber"><div class="stat-label">Today</div><div class="stat-value"><?=tzs($today_total)?></div></div>
+  <div class="stat-card purple"><div class="stat-label">Top Category</div><div class="stat-value"><?=ucwords(str_replace('_',' ',$cat_top['category']??'N/A'))?></div></div>
+  <div class="stat-card green"><div class="stat-label">Top Category Total</div><div class="stat-value"><?=tzs($cat_top['total']??0)?></div></div>
 </div>
 <?=$msg?>
 <div style="margin-bottom:14px"><button class="btn btn-primary" onclick="openModal('add-expense-modal')">+ Add Expense</button></div>
 <div class="card"><div class="card-header"><span class="card-title">Recent Expenses</span></div>
 <div class="table-wrap"><table><thead><tr><th>#</th><th>Description</th><th>Category</th><th>Amount</th><th>Date</th></tr></thead>
 <tbody><?php $i=1; while($e=$expenses->fetch_assoc()):?>
-<tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=($cat_icons[$e['category']]??'📌').' '.htmlspecialchars($e['description'])?></td>
+<tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($e['description'])?></td>
 <td><span class="badge badge-purple"><?=ucwords(str_replace('_',' ',$e['category']))?></span></td>
 <td class="text-danger"><?=tzs($e['amount'])?></td><td class="text-muted"><?=date('M d, Y',strtotime($e['expense_date']))?></td></tr>
 <?php endwhile; if($expenses->num_rows===0):?><tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)">No expenses recorded</td></tr><?php endif;?></tbody></table></div></div>

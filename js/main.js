@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if(markBtn) markBtn.addEventListener('click', function(){ markAllRead(); });
     
     const clearBtn = document.getElementById('notif-clear');
-    if(clearBtn) clearBtn.addEventListener('click', function(){ if(confirm('Clear all notifications?')) clearNotifications(); });
+    if(clearBtn) clearBtn.addEventListener('click', function(){ showConfirm('Clear all notifications?', clearNotifications); });
     
     // close panel when clicking outside
     document.addEventListener('click', function(e){ 

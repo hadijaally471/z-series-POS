@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customerId   = !empty($data['customerId']) ? (int)$data['customerId'] : null;
     $customerName = trim((string)($data['customerName'] ?? 'Walk-in')) ?: 'Walk-in';
     $customerCity = sanitizeString($data['customerCity'] ?? '', 200);
+    $salesRepId   = !empty($data['salesRepId']) ? (int)$data['salesRepId'] : null;
     
     if (empty($cart)) {
         echo json_encode(['success' => false, 'message' => 'Cart is empty']);
@@ -95,10 +96,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($customerCity)) {
             $customerCity = 'Arusha';
         }
-        $stmt = $conn->prepare("INSERT INTO sales (receipt_number, customer_id, customer_name, customer_city, price_type, subtotal, discount, total, payment_method, cashier_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?)");
+        $stmt = $conn->prepare("INSERT INTO sales (receipt_number, customer_id, customer_name, customer_city, price_type, subtotal, discount, total, payment_method, cashier_id, sales_rep_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
         $status = 'completed';
         $cashierId = (int)$_SESSION['user_id'];
-        $stmt->bind_param('sisssdddsis', $temp_receipt, $customerId, $customerName, $customerCity, $priceType, $subtotal, $discount, $total, $payMethod, $cashierId, $status);
+        $stmt->bind_param('sisssdddsiis', $temp_receipt, $customerId, $customerName, $customerCity, $priceType, $subtotal, $discount, $total, $payMethod, $cashierId, $salesRepId, $status);
         $stmt->execute();
         $sale_id = $conn->insert_id;
 
