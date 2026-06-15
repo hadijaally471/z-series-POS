@@ -2,6 +2,23 @@
 -- Database Schema
 -- Created: May 2026
 
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE IF EXISTS activity_log;
+DROP TABLE IF EXISTS debt_payments;
+DROP TABLE IF EXISTS debts;
+DROP TABLE IF EXISTS sale_items;
+DROP TABLE IF EXISTS sales;
+DROP TABLE IF EXISTS expenses;
+DROP TABLE IF EXISTS purchase_orders;
+DROP TABLE IF EXISTS employees;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS customers;
+DROP TABLE IF EXISTS suppliers;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS settings;
+DROP TABLE IF EXISTS users;
+SET FOREIGN_KEY_CHECKS=1;
+
 -- USERS
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -33,6 +50,19 @@ CREATE TABLE suppliers (
   products_supplied TEXT,
   total_purchased DECIMAL(15,2) DEFAULT 0,
   status ENUM('active','inactive') DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- EMPLOYEES (must come before sales)
+CREATE TABLE employees (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  role VARCHAR(100),
+  phone VARCHAR(20),
+  salary DECIMAL(10,2),
+  nida VARCHAR(50),
+  start_date DATE,
+  status ENUM('active','inactive','on_leave') DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -156,19 +186,6 @@ CREATE TABLE purchase_orders (
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
-);
-
--- EMPLOYEES
-CREATE TABLE employees (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(150) NOT NULL,
-  role VARCHAR(100),
-  phone VARCHAR(20),
-  salary DECIMAL(10,2),
-  nida VARCHAR(50),
-  start_date DATE,
-  status ENUM('active','inactive','on_leave') DEFAULT 'active',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ACTIVITY LOG
