@@ -63,7 +63,7 @@ $receipt_footer = getSetting($conn,'receipt_footer');
 <td class="text-muted"><?=date('M d H:i',strtotime($s['created_at']))?></td>
 </tr><?php endwhile;?></tbody></table></div></div>
 
-<div class="card"><div class="card-header"><span class="card-title">Receipt Preview</span><?php if($selected_sale):?><button class="btn btn-primary btn-sm" onclick="printReceipt('#print-receipt')">🖨️ Print</button><?php endif;?></div>
+<div class="card"><div class="card-header"><span class="card-title">Receipt Preview</span><?php if($selected_sale):?><button class="btn btn-primary btn-sm" onclick="printReceipt('#print-receipt')"> Print</button><?php endif;?></div>
 <div class="card-body receipt-preview-body">
 <?php if($selected_sale): ?>
 <div class="receipt-box" id="print-receipt">
@@ -84,7 +84,7 @@ $receipt_footer = getSetting($conn,'receipt_footer');
   <div class="receipt-footer"><div><?=htmlspecialchars($receipt_footer)?></div><div><?=htmlspecialchars($business_name)?> © <?=date('Y')?></div></div>
 </div>
 <?php else: ?>
-<div class="empty-state"><div class="empty-state-icon">🧾</div><div class="empty-state-title">Select a receipt</div><div class="empty-state-sub">Click "View" on any receipt to preview</div></div>
+<div class="empty-state"><div class="empty-state-icon"></div><div class="empty-state-title">Select a receipt</div><div class="empty-state-sub">Click "View" on any receipt to preview</div></div>
 <?php endif;?>
 </div></div></div>
 <?php require_once 'includes/footer.php'; ?>

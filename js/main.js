@@ -16,9 +16,9 @@ document.addEventListener('DOMContentLoaded',function(){
 function showToast(msg, type='info'){
   const t = document.getElementById('toast');
   if(!t) return;
-  const icons = {success:'✅', error:'❌', info:'💜', warning:'⚠️'};
+  const icons = {success:'', error:'', info:'', warning:''};
   t.className = 'toast ' + type;
-  document.getElementById('toast-icon').textContent = icons[type]||'💜';
+  document.getElementById('toast-icon').textContent = icons[type]||'';
   document.getElementById('toast-msg').textContent = msg;
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2000);
@@ -122,6 +122,20 @@ function showConfirm(message, onOk){
   const okBtn = document.getElementById('global-confirm-ok');
   const cancelBtn = document.getElementById('global-confirm-cancel');
   body.textContent = message;
+  var icon = document.querySelector('#global-confirm div[style*="border-radius:50%"]');
+  var title = document.getElementById('global-confirm-title');
+  var isSignOut = message.toLowerCase().indexOf('sign out') !== -1 || message.toLowerCase().indexOf('logout') !== -1;
+  if (isSignOut) {
+    if (icon) { icon.style.background = 'rgba(124,58,237,0.12)'; icon.style.borderColor = 'rgba(124,58,237,0.25)'; icon.innerHTML = ''; }
+    if (title) title.textContent = 'Sign Out';
+    okBtn.textContent = 'Sign Out';
+    okBtn.className = 'btn btn-primary';
+  } else {
+    if (icon) { icon.style.background = 'rgba(239,68,68,0.12)'; icon.style.borderColor = 'rgba(239,68,68,0.25)'; icon.innerHTML = ''; }
+    if (title) title.textContent = 'Are you sure?';
+    okBtn.textContent = 'Delete';
+    okBtn.className = 'btn btn-danger';
+  }
   openModal('global-confirm');
   function cleanup(){
     okBtn.removeEventListener('click', okHandler);

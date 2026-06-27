@@ -95,10 +95,10 @@ $pay_totals = json_encode(array_column($pay_rows,'total'));
   </form>
 </div>
 <div class="stats-grid">
-  <div class="stat-card purple"><div class="stat-label">Total Revenue</div><div class="stat-value"><?=tzs($revenue)?></div><div class="stat-icon">💰</div></div>
-  <div class="stat-card green"><div class="stat-label">Transactions</div><div class="stat-value"><?=$transactions?></div><div class="stat-icon">🛒</div></div>
-  <div class="stat-card red"><div class="stat-label">Total Expenses</div><div class="stat-value"><?=tzs($expenses)?></div><div class="stat-icon">💸</div></div>
-  <div class="stat-card <?=$profit>=0?'green':'red'?>"><div class="stat-label">Net Profit</div><div class="stat-value"><?=tzs(abs($profit))?></div><div class="stat-sub"><?=$profit<0?'(Loss)':'Profit'?></div><div class="stat-icon">📈</div></div>
+  <div class="stat-card purple"><div class="stat-label">Total Revenue</div><div class="stat-value"><?=tzs($revenue)?></div><div class="stat-icon"></div></div>
+  <div class="stat-card green"><div class="stat-label">Transactions</div><div class="stat-value"><?=$transactions?></div><div class="stat-icon"></div></div>
+  <div class="stat-card red"><div class="stat-label">Total Expenses</div><div class="stat-value"><?=tzs($expenses)?></div><div class="stat-icon"></div></div>
+  <div class="stat-card <?=$profit>=0?'green':'red'?>"><div class="stat-label">Net Profit</div><div class="stat-value"><?=tzs(abs($profit))?></div><div class="stat-sub"><?=$profit<0?'(Loss)':'Profit'?></div><div class="stat-icon"></div></div>
 </div>
 <div class="grid-3-1">
   <div class="card"><div class="card-header"><span class="card-title">Daily Revenue — <?=date('F Y',strtotime($month_start))?></span></div>

@@ -34,17 +34,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($action === 'add') {
             $stmt = $conn->prepare("INSERT INTO products (name,category_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?)");
-            $stmt->bind_param('siddsii', $name,$cat_id,$rejareja,$jumla,$stock,$unit,$threshold);
+            $stmt->bind_param('siddisi', $name,$cat_id,$rejareja,$jumla,$stock,$unit,$threshold);
             $stmt->execute();
             logActivity($conn, "Product added: $name", 'product');
-            $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Product added successfully!</div>';
+            $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Product added successfully!</div>';
         } else {
             $id = (int)$_POST['id'];
             $stmt = $conn->prepare("UPDATE products SET name=?,category_id=?,rejareja_price=?,jumla_price=?,stock=?,unit=?,low_stock_threshold=? WHERE id=?");
-            $stmt->bind_param('siddsiii', $name,$cat_id,$rejareja,$jumla,$stock,$unit,$threshold,$id);
+            $stmt->bind_param('siddisii', $name,$cat_id,$rejareja,$jumla,$stock,$unit,$threshold,$id);
             $stmt->execute();
             logActivity($conn, "Product updated: $name", 'product');
-            $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Product updated!</div>';
+            $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Product updated!</div>';
         }
     }
     if ($action === 'delete') {
@@ -57,16 +57,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $stmt->bind_param('i', $id);
       $stmt->execute();
         logActivity($conn, "Product removed: ".$p['name'], 'product');
-        $msg = '<div style="color:var(--warning);padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;margin-bottom:14px">⚠️ Product removed from inventory.</div>';
+        $msg = '<div style="color:var(--warning);padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;margin-bottom:14px">Product removed from inventory.</div>';
     }
       if ($action === 'import') {
         if (!isset($_FILES['import_file']) || $_FILES['import_file']['error'] !== UPLOAD_ERR_OK) {
-          $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Import failed. Please choose a valid CSV file.</div>';
+          $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Import failed. Please choose a valid CSV file.</div>';
         } else {
           $path = $_FILES['import_file']['tmp_name'];
           $handle = fopen($path, 'r');
           if ($handle === false) {
-            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Unable to read the uploaded file.</div>';
+            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Unable to read the uploaded file.</div>';
           } else {
             $conn->begin_transaction();
             try {
@@ -125,17 +125,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   $stmt->execute();
                 } else {
                   $stmt = $conn->prepare("INSERT INTO products (name,category_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?)");
-                  $stmt->bind_param('siddsii', $name, $cat_id, $rejareja, $jumla, $stock, $unit, $threshold);
+                  $stmt->bind_param('siddisi', $name, $cat_id, $rejareja, $jumla, $stock, $unit, $threshold);
                   $stmt->execute();
                 }
                 $rows_imported++;
               }
               fclose($handle);
               $conn->commit();
-              $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Imported ' . $rows_imported . ' products successfully.</div>';
+              $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Imported ' . $rows_imported . ' products successfully.</div>';
             } catch (Exception $e) {
               $conn->rollback();
-              $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Import failed: ' . htmlspecialchars($e->getMessage()) . '</div>';
+              $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Import failed: ' . htmlspecialchars($e->getMessage()) . '</div>';
             }
           }
         }
@@ -174,10 +174,10 @@ $ok_count   = $total_products - $low_count - $out_count;
 ?>
 
 <div class="stats-grid">
-  <div class="stat-card purple"><div class="stat-label">Total Products</div><div class="stat-value"><?= $total_products ?></div><div class="stat-icon">📦</div></div>
-  <div class="stat-card green"><div class="stat-label">Well Stocked</div><div class="stat-value"><?= $ok_count ?></div><div class="stat-icon">✅</div></div>
-  <div class="stat-card amber"><div class="stat-label">Low Stock</div><div class="stat-value"><?= $low_count ?></div><div class="stat-icon">⚠️</div></div>
-  <div class="stat-card red"><div class="stat-label">Out of Stock</div><div class="stat-value"><?= $out_count ?></div><div class="stat-icon">❌</div></div>
+  <div class="stat-card purple"><div class="stat-label">Total Products</div><div class="stat-value"><?= $total_products ?></div><div class="stat-icon"></div></div>
+  <div class="stat-card green"><div class="stat-label">Well Stocked</div><div class="stat-value"><?= $ok_count ?></div><div class="stat-icon"></div></div>
+  <div class="stat-card amber"><div class="stat-label">Low Stock</div><div class="stat-value"><?= $low_count ?></div><div class="stat-icon"></div></div>
+  <div class="stat-card red"><div class="stat-label">Out of Stock</div><div class="stat-value"><?= $out_count ?></div><div class="stat-icon"></div></div>
 </div>
 
 <?= $msg ?>
@@ -230,12 +230,12 @@ $ok_count   = $total_products - $low_count - $out_count;
           </td>
           <td>
             <div class="action-buttons">
-              <button class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='editProduct(<?= json_encode($p) ?>)'>✏️</button>
+              <button class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='editProduct(<?= json_encode($p) ?>)'></button>
               <form method="POST" onsubmit="return confirm('Remove this product?')">
                 <?= csrfInput() ?>
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="id" value="<?= $p['id'] ?>"/>
-                <button type="submit" class="btn btn-danger btn-sm" title="Delete" aria-label="Delete">🗑️</button>
+                <button type="submit" class="btn btn-danger btn-sm" title="Delete" aria-label="Delete"></button>
               </form>
             </div>
           </td>
@@ -254,7 +254,7 @@ $ok_count   = $total_products - $low_count - $out_count;
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title">Import Products (CSV)</span>
-      <button class="modal-close" onclick="closeModal('import-products-modal')">✕</button>
+      <button class="modal-close" onclick="closeModal('import-products-modal')">&times;</button>
     </div>
     <form method="POST" enctype="multipart/form-data">
       <?= csrfInput() ?>
@@ -281,7 +281,7 @@ $ok_count   = $total_products - $low_count - $out_count;
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title" id="product-modal-title">Add New Product</span>
-      <button class="modal-close" onclick="closeModal('add-product-modal')">✕</button>
+      <button class="modal-close" onclick="closeModal('add-product-modal')">&times;</button>
     </div>
     <form method="POST">
       <?= csrfInput() ?>

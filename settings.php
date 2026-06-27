@@ -17,25 +17,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         logActivity($conn,'System settings updated','system');
-        $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Settings saved!</div>';
+        $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Settings saved!</div>';
     }
     if ($action === 'password') {
-        $current = $_POST['current_password'];
-        $new_pass = $_POST['new_password'];
+        $current = $_POST['current_password'] ?? '';
+        $new_pass = $_POST['new_password'] ?? '';
+        $confirm_pass = $_POST['confirm_password'] ?? '';
         $uid = $_SESSION['user_id'];
-        $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
-        $stmt->bind_param('i', $uid);
-        $stmt->execute();
-        $user = $stmt->get_result()->fetch_assoc();
-        if (password_verify($current, $user['password'])) {
-            $hash = password_hash($new_pass, PASSWORD_DEFAULT);
-            $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
-            $stmt->bind_param('si', $hash, $uid);
-            $stmt->execute();
-            logActivity($conn,'Password changed','system');
-            $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Password updated!</div>';
+        if (strlen($new_pass) < 6) {
+            $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">New password must be at least 6 characters.</div>';
+        } elseif ($new_pass !== $confirm_pass) {
+            $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">New passwords do not match.</div>';
         } else {
-            $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Current password is incorrect!</div>';
+            $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
+            $stmt->bind_param('i', $uid);
+            $stmt->execute();
+            $user = $stmt->get_result()->fetch_assoc();
+            if (password_verify($current, $user['password'])) {
+                $hash = password_hash($new_pass, PASSWORD_DEFAULT);
+                $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+                $stmt->bind_param('si', $hash, $uid);
+                $stmt->execute();
+                logActivity($conn,'Password changed','system');
+                $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Password updated!</div>';
+            } else {
+                $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Current password is incorrect!</div>';
+            }
         }
     }
 }
@@ -51,13 +58,14 @@ function gs($conn,$k){return htmlspecialchars(getSetting($conn,$k));}
 <div class="form-group"><label class="form-label">Address</label><input name="business_address" class="form-control" value="<?=gs($conn,'business_address')?>"/></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Currency</label><select name="currency" class="form-control"><option value="TZS" <?=gs($conn,'currency')==='TZS'?'selected':''?>>TZS — Tanzanian Shilling</option><option value="USD">USD</option></select></div><div class="form-group"><label class="form-label">Tax Rate (%)</label><input type="number" name="tax_rate" class="form-control" value="<?=gs($conn,'tax_rate')?>"/></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Low Stock Threshold</label><input type="number" name="low_stock_threshold" class="form-control" value="<?=gs($conn,'low_stock_threshold')?>"/></div><div class="form-group"><label class="form-label">Receipt Footer</label><input name="receipt_footer" class="form-control" value="<?=gs($conn,'receipt_footer')?>"/></div></div>
-<button type="submit" class="btn btn-primary">💾 Save Settings</button>
+<button type="submit" class="btn btn-primary">Save Settings</button>
 </form></div></div>
 
 <div><div class="card"><div class="card-header"><span class="card-title">Change Password</span></div>
 <div class="card-body"><form method="POST"><input type="hidden" name="action" value="password"><?= csrfInput() ?>
 <div class="form-group"><label class="form-label">Current Password</label><input type="password" name="current_password" class="form-control" required/></div>
-<div class="form-group"><label class="form-label">New Password</label><input type="password" name="new_password" class="form-control" required/></div>
+<div class="form-group"><label class="form-label">New Password (min 6 characters)</label><input type="password" name="new_password" class="form-control" minlength="6" required/></div>
+<div class="form-group"><label class="form-label">Confirm New Password</label><input type="password" name="confirm_password" class="form-control" minlength="6" required/></div>
 <button type="submit" class="btn btn-primary">Update Password</button>
 </form></div></div>
 

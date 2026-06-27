@@ -15,7 +15,7 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
 <div class="pos-layout">
   <!-- LEFT: Products -->
   <div class="pos-left">
-    <input type="text" class="pos-search" id="product-search" placeholder="🔍  Search products by name..." oninput="filterProducts(this.value)"/>
+    <input type="text" class="pos-search" id="product-search" placeholder="Search products by name..." oninput="filterProducts(this.value)"/>
     <div class="pos-cats">
       <select class="pos-cat-select" id="pos-cat-select" onchange="setCatSelect(this.value)">
         <option value="all">All Categories</option>
@@ -53,7 +53,7 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
   <!-- RIGHT: Cart -->
   <div class="pos-right">
     <div class="pos-right-header">
-      <div class="pos-right-title">🛒 Current Sale</div>
+      <div class="pos-right-title">Current Sale</div>
       <div style="font-size:11px;color:var(--text3);margin-top:2px" id="receipt-num">RCP-<?= str_pad(rand(100,999), 4, '0', STR_PAD_LEFT) ?></div>
     </div>
     
@@ -90,7 +90,7 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
 
     <!-- Cart items -->
     <div class="pos-cart" id="pos-cart">
-      <div class="cart-empty">🛒<br/>No items yet<br/><small>Click a product to add</small></div>
+      <div class="cart-empty">No items yet<br/><small>Click a product to add</small></div>
     </div>
 
     <!-- Footer -->
@@ -106,9 +106,9 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
         <div class="pos-total-row grand"><span>TOTAL</span><span id="cart-total">TZS 0</span></div>
       </div>
       <div class="pay-methods">
-        <button class="pay-method active" id="pay-cash" onclick="setPayMethod('cash')">💵 Cash</button>
-        <button class="pay-method" id="pay-mpesa" onclick="setPayMethod('mpesa')">📱 M-Pesa</button>
-        <button class="pay-method" id="pay-debt" onclick="setPayMethod('debt')">📒 Debt</button>
+        <button class="pay-method active" id="pay-cash" onclick="setPayMethod('cash')">Cash</button>
+        <button class="pay-method" id="pay-mpesa" onclick="setPayMethod('mpesa')">M-Pesa</button>
+        <button class="pay-method" id="pay-debt" onclick="setPayMethod('debt')">Debt</button>
       </div>
       <button class="pay-btn" onclick="processSale()">Complete Sale & Print</button>
     </div>
@@ -119,13 +119,13 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
 <div class="modal-overlay" id="receipt-modal" data-dismiss="true">
   <div class="modal" style="width:380px">
     <div class="modal-header">
-      <span class="modal-title">🧾 Receipt</span>
-      <button class="modal-close" onclick="closeReceipt()">✕</button>
+      <span class="modal-title">Receipt</span>
+      <button class="modal-close" onclick="closeReceipt()">&times;</button>
     </div>
     <div class="modal-body" id="receipt-content"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeReceipt()">Close</button>
-      <button class="btn btn-primary" onclick="printReceipt('#receipt-content .receipt-box')">🖨️ Print</button>
+      <button class="btn btn-primary" onclick="printReceipt('#receipt-content .receipt-box')">Print</button>
     </div>
   </div>
 </div>
@@ -201,7 +201,7 @@ function changeQty(id, delta){
 
 function renderCart(){
   const el = document.getElementById('pos-cart');
-  if(!cart.length){el.innerHTML='<div class="cart-empty">🛒<br/>No items yet<br/><small>Click a product to add</small></div>';updateTotals();return;}
+  if(!cart.length){el.innerHTML='<div class="cart-empty">No items yet<br/><small>Click a product to add</small></div>';updateTotals();return;}
   el.innerHTML = cart.map(item=>`
     <div class="cart-item">
       <div class="cart-item-name">${item.name}<small>${item.catName} • ${fmt(item[priceType])} each</small></div>

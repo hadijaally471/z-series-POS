@@ -13,7 +13,7 @@ if ($low_stock) {
         $notifications[] = [
             'id' => 'low_stock_' . $p['id'],
             'type' => 'low_stock',
-            'title' => '📦 Low Stock Alert',
+            'title' => ' Low Stock Alert',
             'body' => $p['name'] . ' (Stock: ' . $p['stock'] . ')',
             'link' => 'inventory.php',
             'priority' => 'high'
@@ -28,7 +28,7 @@ if ($overdue) {
         $notifications[] = [
             'id' => 'overdue_debt_' . $d['id'],
             'type' => 'overdue_debt',
-            'title' => '💰 Overdue Debt',
+            'title' => ' Overdue Debt',
             'body' => $d['customer_name'] . ' owes TZS ' . number_format($d['balance']),
             'link' => 'debts.php',
             'priority' => 'high'
@@ -45,7 +45,7 @@ if ($pending_po) {
             $notifications[] = [
                 'id' => 'pending_po_' . $po['id'],
                 'type' => 'pending_po',
-                'title' => '📋 Pending Purchase Order',
+                'title' => ' Pending Purchase Order',
                 'body' => $po['supplier_name'] . ' (' . $days_pending . ' days pending)',
                 'link' => 'purchase_orders.php',
                 'priority' => 'medium'
@@ -62,7 +62,7 @@ if ($recent_expenses) {
         $notifications[] = [
             'id' => 'recent_expenses_24h',
             'type' => 'expenses',
-            'title' => '💸 Recent Expenses',
+            'title' => ' Recent Expenses',
             'body' => $exp['c'] . ' expense(s): TZS ' . number_format($exp['total']),
             'link' => 'expenses.php',
             'priority' => 'low'

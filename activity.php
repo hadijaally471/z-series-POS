@@ -17,7 +17,7 @@ if ($type_f) {
 } else {
   $logs = $conn->query("SELECT * FROM activity_log ORDER BY created_at DESC LIMIT 100");
 }
-$type_icons = ['sale'=>'🛒','product'=>'📦','customer'=>'👥','expense'=>'💸','debt'=>'💰','po'=>'📋','system'=>'⚙️'];
+$type_icons = ['sale'=>'','product'=>'','customer'=>'','expense'=>'','debt'=>'','po'=>'','system'=>''];
 $type_colors = ['sale'=>'var(--success)','product'=>'var(--purple)','customer'=>'var(--info)','expense'=>'var(--danger)','debt'=>'var(--warning)','po'=>'var(--purple2)','system'=>'var(--text3)'];
 ?>
 <form method="GET" style="display:contents"><div class="filter-bar">
@@ -36,7 +36,7 @@ $type_colors = ['sale'=>'var(--success)','product'=>'var(--purple)','customer'=>
 <div class="card"><div class="card-header"><span class="card-title">System Activity Log (<?=$logs->num_rows?> recent)</span></div>
 <div class="card-body" style="padding:0 20px">
 <?php while($log=$logs->fetch_assoc()):
-$icon = $type_icons[$log['type']]??'⚙️';
+$icon = $type_icons[$log['type']]??'';
 $color = $type_colors[$log['type']]??'var(--text3)';
 ?>
 <div class="act-item">
@@ -49,7 +49,7 @@ $color = $type_colors[$log['type']]??'var(--text3)';
   <div class="act-time"><?=date('M d H:i',strtotime($log['created_at']))?></div>
 </div>
 <?php endwhile; if($logs->num_rows===0):?>
-<div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-title">No activity yet</div></div>
+<div class="empty-state"><div class="empty-state-icon"></div><div class="empty-state-title">No activity yet</div></div>
 <?php endif;?>
 </div></div>
 <?php require_once 'includes/footer.php'; ?>

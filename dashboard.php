@@ -125,7 +125,7 @@ $low_products = $conn->query("SELECT p.*, c.name as cat_name FROM products p LEF
           </tr>
           <?php endwhile; ?>
           <?php if ($low_products->num_rows === 0): ?>
-          <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">✅ All products well stocked</td></tr>
+          <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">All products well stocked</td></tr>
           <?php endif; ?>
         </tbody>
       </table>

@@ -50,19 +50,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="login-title">Welcome Back</div>
       <div class="login-subtitle">Manage your tiles, soap & cashew nut business — sales, inventory, suppliers and more in one place.</div>
       <div class="login-feature">
-        <div class="login-feature-icon">🛒</div>
+        <div class="login-feature-icon"></div>
         <div class="login-feature-text">Point of Sale — Jumla & Rejareja pricing</div>
       </div>
       <div class="login-feature">
-        <div class="login-feature-icon">📦</div>
+        <div class="login-feature-icon"></div>
         <div class="login-feature-text">Inventory & Stock Management</div>
       </div>
       <div class="login-feature">
-        <div class="login-feature-icon">🌾</div>
+        <div class="login-feature-icon"></div>
         <div class="login-feature-text">Supplier & Farmer Management</div>
       </div>
       <div class="login-feature">
-        <div class="login-feature-icon">📊</div>
+        <div class="login-feature-icon"></div>
         <div class="login-feature-text">Reports & Business Analytics</div>
       </div>
     </div>

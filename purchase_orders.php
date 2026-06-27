@@ -14,14 +14,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $total = sanitizeFloat($_POST['total_amount'] ?? 0);
         $terms = sanitizeString($_POST['payment_terms'] ?? '', 100);
         $expected = sanitizeString($_POST['expected_date'] ?? '', 20);
-        $last = $conn->query("SELECT po_number FROM purchase_orders ORDER BY id DESC LIMIT 1")->fetch_assoc();
-        $num = $last ? (int)substr($last['po_number'],3)+1 : 1;
-        $po_number = 'PO-'.str_pad($num,4,'0',STR_PAD_LEFT);
+        $temp_po = 'PO-TEMP';
         $stmt = $conn->prepare("INSERT INTO purchase_orders (po_number,supplier_id,supplier_name,items,total_amount,payment_terms,order_date,expected_date) VALUES (?,?,?,?,?,?,CURDATE(),?)");
-        $stmt->bind_param('sissdss',$po_number,$sup_id,$sup_name,$items,$total,$terms,$expected);
+        $stmt->bind_param('sissdss',$temp_po,$sup_id,$sup_name,$items,$total,$terms,$expected);
+        $stmt->execute();
+        $po_id = $conn->insert_id;
+        $po_number = 'PO-'.str_pad($po_id, 4, '0', STR_PAD_LEFT);
+        $stmt = $conn->prepare("UPDATE purchase_orders SET po_number = ? WHERE id = ?");
+        $stmt->bind_param('si', $po_number, $po_id);
         $stmt->execute();
         logActivity($conn,"Purchase Order created: $po_number — $sup_name",'po');
-        $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Purchase Order '.$po_number.' created!</div>';
+        $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Purchase Order '.$po_number.' created!</div>';
     }
     if ($action === 'receive') {
       $id = sanitizeInt($_POST['id'] ?? 0);
@@ -29,7 +32,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $stmt->bind_param('i', $id);
       $stmt->execute();
       logActivity($conn,"Purchase Order received: #$id",'po');
-      $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Order marked as received!</div>';
+      $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Order marked as received!</div>';
+    }
+    if ($action === 'cancel') {
+      $id = sanitizeInt($_POST['id'] ?? 0);
+      $stmt = $conn->prepare("UPDATE purchase_orders SET status='cancelled' WHERE id = ? AND status='pending'");
+      $stmt->bind_param('i', $id);
+      $stmt->execute();
+      logActivity($conn,"Purchase Order cancelled: #$id",'po');
+      $msg='<div style="color:var(--warning);padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;margin-bottom:14px">Order cancelled.</div>';
+    }
+    if ($action === 'delete') {
+      $id = sanitizeInt($_POST['id'] ?? 0);
+      if ($id > 0) {
+        $stmt = $conn->prepare("SELECT po_number FROM purchase_orders WHERE id = ?");
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $po_row = $stmt->get_result()->fetch_assoc();
+        $stmt = $conn->prepare("DELETE FROM purchase_orders WHERE id = ?");
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        logActivity($conn, "Purchase Order deleted: " . ($po_row['po_number'] ?? '#'.$id), 'po');
+        $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Purchase order deleted!</div>';
+      }
     }
 }
 $status_f = $_GET['status']??'';
@@ -49,10 +74,10 @@ $suppliers = $conn->query("SELECT * FROM suppliers WHERE status='active' ORDER B
 $stats = $conn->query("SELECT SUM(status='pending') as pending, SUM(status='received') as received, SUM(status='cancelled') as cancelled, COALESCE(SUM(total_amount),0) as total_value FROM purchase_orders")->fetch_assoc();
 ?>
 <div class="stats-grid">
-  <div class="stat-card amber"><div class="stat-label">Pending Orders</div><div class="stat-value"><?=$stats['pending']?></div><div class="stat-icon">⏳</div></div>
-  <div class="stat-card green"><div class="stat-label">Received</div><div class="stat-value"><?=$stats['received']?></div><div class="stat-icon">✅</div></div>
-  <div class="stat-card red"><div class="stat-label">Cancelled</div><div class="stat-value"><?=$stats['cancelled']?></div><div class="stat-icon">❌</div></div>
-  <div class="stat-card purple"><div class="stat-label">Total Value</div><div class="stat-value"><?=tzs($stats['total_value'])?></div><div class="stat-icon">💰</div></div>
+  <div class="stat-card amber"><div class="stat-label">Pending Orders</div><div class="stat-value"><?=$stats['pending']?></div><div class="stat-icon"></div></div>
+  <div class="stat-card green"><div class="stat-label">Received</div><div class="stat-value"><?=$stats['received']?></div><div class="stat-icon"></div></div>
+  <div class="stat-card red"><div class="stat-label">Cancelled</div><div class="stat-value"><?=$stats['cancelled']?></div><div class="stat-icon"></div></div>
+  <div class="stat-card purple"><div class="stat-label">Total Value</div><div class="stat-value"><?=tzs($stats['total_value'])?></div><div class="stat-icon"></div></div>
 </div>
 <?=$msg?>
 <form method="GET" style="display:contents"><div class="filter-bar">
@@ -67,11 +92,15 @@ $stats = $conn->query("SELECT SUM(status='pending') as pending, SUM(status='rece
 <td class="text-success"><?=tzs($po['total_amount'])?></td>
 <td class="text-muted"><?=$po['expected_date']?date('M d, Y',strtotime($po['expected_date'])):'—'?></td>
 <td><span class="badge badge-<?=$po['status']==='received'?'success':($po['status']==='pending'?'warning':'danger')?>"><?=ucfirst($po['status'])?></span></td>
-<td>
+<td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
   <?php if($po['status']==='pending'):?>
-  <form method="POST" style="display:inline"><input type="hidden" name="action" value="receive"><?= csrfInput() ?><input type="hidden" name="id" value="<?=$po['id']?>">
-  <button type="submit" class="btn btn-success btn-sm">✅ Received</button></form>
+  <form method="POST" style="margin:0"><input type="hidden" name="action" value="receive"><?= csrfInput() ?><input type="hidden" name="id" value="<?=$po['id']?>">
+  <button type="submit" class="btn btn-success btn-sm">Received</button></form>
+  <form method="POST" style="margin:0" data-confirm="Cancel this purchase order?"><input type="hidden" name="action" value="cancel"><?= csrfInput() ?><input type="hidden" name="id" value="<?=$po['id']?>">
+  <button type="submit" class="btn btn-warning btn-sm">Cancel</button></form>
   <?php endif;?>
+  <form method="POST" style="margin:0" data-confirm="Delete purchase order <?=htmlspecialchars($po['po_number'], ENT_QUOTES)?>?"><input type="hidden" name="action" value="delete"><?= csrfInput() ?><input type="hidden" name="id" value="<?=$po['id']?>">
+  <button type="submit" class="btn btn-danger btn-sm">Delete</button></form>
 </td></tr>
 <?php endwhile; if($pos->num_rows===0):?><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">No purchase orders found</td></tr><?php endif;?></tbody></table></div></div>
 <div class="modal-overlay" id="add-po-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">New Purchase Order</span><button class="modal-close" onclick="closeModal('add-po-modal')">✕</button></div>
@@ -90,7 +119,7 @@ $extra_js = "<script>
 function setSupName(sel){document.getElementById('po-sup-name').value=sel.selectedOptions[0].text;}
 document.addEventListener('DOMContentLoaded', function() {
   const msgDiv = document.querySelector('div[style*=\"color:var\"]');
-  if (msgDiv && (msgDiv.textContent.includes('✅') || msgDiv.textContent.includes('❌') || msgDiv.textContent.includes('🗑️'))) {
+  if (msgDiv && (msgDiv.textContent.trim().length > 0)) {
     setTimeout(() => {
       msgDiv.style.opacity = '0';
       msgDiv.style.transition = 'opacity 0.3s ease-out';

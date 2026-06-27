@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $method = 'cash';
     }
     if ($amount <= 0) {
-      $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Payment amount must be greater than zero.</div>';
+      $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Payment amount must be greater than zero.</div>';
     } else {
       $conn->begin_transaction();
       try {
@@ -47,10 +47,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
             $conn->commit();
             logActivity($conn,"Debt payment: ".$debt['customer_name']." — ".number_format($amount)." TZS",'debt');
-            $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Payment recorded!</div>';
+            $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Payment recorded!</div>';
       } catch (Exception $e) {
         $conn->rollback();
-        $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ '.htmlspecialchars($e->getMessage()).'</div>';
+        $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">'.htmlspecialchars($e->getMessage()).'</div>';
       }
     }
     }
@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cname = sanitizeString($_POST['customer_name'] ?? '', 200); $amount = sanitizeFloat($_POST['amount'] ?? 0);
     $desc = sanitizeString($_POST['description'] ?? '', 500); $due = sanitizeString($_POST['due_date'] ?? '', 20);
     if ($amount <= 0 || $cname === '') {
-      $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Customer name and a positive amount are required.</div>';
+      $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Customer name and a positive amount are required.</div>';
     } else {
       $conn->begin_transaction();
       try {
@@ -83,10 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $conn->commit();
             logActivity($conn,"Debt recorded: $cname — ".number_format($amount)." TZS",'debt');
-            $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Debt recorded!</div>';
+            $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Debt recorded!</div>';
       } catch (Exception $e) {
         $conn->rollback();
-        $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ '.htmlspecialchars($e->getMessage()).'</div>';
+        $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">'.htmlspecialchars($e->getMessage()).'</div>';
       }
     }
     }
@@ -96,10 +96,10 @@ $stats = $conn->query("SELECT COALESCE(SUM(balance),0) as total, COUNT(*) as cou
 $customers_list = $conn->query("SELECT id,name FROM customers ORDER BY name");
 ?>
 <div class="stats-grid">
-  <div class="stat-card red"><div class="stat-label">Total Outstanding</div><div class="stat-value"><?=tzs($stats['total'])?></div><div class="stat-icon">💰</div></div>
-  <div class="stat-card amber"><div class="stat-label">Debtors Count</div><div class="stat-value"><?=$stats['count']?></div><div class="stat-icon">👤</div></div>
-  <div class="stat-card purple"><div class="stat-label">Partially Paid</div><div class="stat-value"><?=$stats['partial']?></div><div class="stat-icon">⏳</div></div>
-  <div class="stat-card red"><div class="stat-label">Overdue</div><div class="stat-value"><?=$stats['overdue']?></div><div class="stat-icon">⚠️</div></div>
+  <div class="stat-card red"><div class="stat-label">Total Outstanding</div><div class="stat-value"><?=tzs($stats['total'])?></div><div class="stat-icon"></div></div>
+  <div class="stat-card amber"><div class="stat-label">Debtors Count</div><div class="stat-value"><?=$stats['count']?></div><div class="stat-icon"></div></div>
+  <div class="stat-card purple"><div class="stat-label">Partially Paid</div><div class="stat-value"><?=$stats['partial']?></div><div class="stat-icon"></div></div>
+  <div class="stat-card red"><div class="stat-label">Overdue</div><div class="stat-value"><?=$stats['overdue']?></div><div class="stat-icon"></div></div>
 </div>
 <?=$msg?>
 <div style="margin-bottom:14px"><button class="btn btn-primary" onclick="openModal('add-debt-modal')">+ Record Debt</button></div>
@@ -114,12 +114,12 @@ $overdue = $d['due_date'] && strtotime($d['due_date']) < time() && $d['status']!
 <td class="text-muted"><?=date('M d, Y',strtotime($d['debt_date']))?></td>
 <td class="<?=$overdue?'text-danger':''?>"><?=$d['due_date']?date('M d, Y',strtotime($d['due_date'])):'—'?></td>
 <td><span class="badge badge-<?=$d['status']==='partial'?'warning':'danger'?>"><?=ucfirst($d['status'])?></span></td>
-<td><button class="btn btn-success btn-sm" onclick="payDebt(<?=$d['id']?>,<?=$d['balance']?>,'<?=htmlspecialchars($d['customer_name'])?>',)">Pay</button></td>
+<td><button class="btn btn-success btn-sm" onclick="payDebt(<?=$d['id']?>,<?=$d['balance']?>,'<?=htmlspecialchars($d['customer_name'], ENT_QUOTES)?>')">Pay</button></td>
 </tr>
-<?php endwhile; if($debts->num_rows===0):?><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--success)">✅ No outstanding debts!</td></tr><?php endif;?></tbody></table></div></div>
+<?php endwhile; if($debts->num_rows===0):?><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--success)">No outstanding debts!</td></tr><?php endif;?></tbody></table></div></div>
 
 <!-- Add Debt Modal -->
-<div class="modal-overlay" id="add-debt-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Record Debt</span><button class="modal-close" onclick="closeModal('add-debt-modal')">✕</button></div>
+<div class="modal-overlay" id="add-debt-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Record Debt</span><button class="modal-close" onclick="closeModal('add-debt-modal')">&#x2715;</button></div>
 <form method="POST"><input type="hidden" name="action" value="add"><?= csrfInput() ?><div class="modal-body">
 <div class="form-row">
 <div class="form-group"><label class="form-label">Customer</label><select name="customer_id" class="form-control" onchange="setDebtName(this)"><option value="">-- Walk-in/Other --</option><?php $customers_list->data_seek(0); while($c=$customers_list->fetch_assoc()):?><option value="<?=$c['id']?>"><?=htmlspecialchars($c['name'])?></option><?php endwhile;?></select></div>
@@ -129,7 +129,7 @@ $overdue = $d['due_date'] && strtotime($d['due_date']) < time() && $d['status']!
 </div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('add-debt-modal')">Cancel</button><button type="submit" class="btn btn-primary">Record Debt</button></div></form></div></div>
 
 <!-- Pay Debt Modal -->
-<div class="modal-overlay" id="pay-debt-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Record Payment</span><button class="modal-close" onclick="closeModal('pay-debt-modal')">✕</button></div>
+<div class="modal-overlay" id="pay-debt-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Record Payment</span><button class="modal-close" onclick="closeModal('pay-debt-modal')">&#x2715;</button></div>
 <form method="POST"><input type="hidden" name="action" value="pay"><input type="hidden" name="debt_id" id="pay-debt-id"><?= csrfInput() ?>
 <div class="modal-body">
 <div style="margin-bottom:14px;padding:14px;background:var(--bg3);border-radius:10px"><div style="font-size:13px;color:var(--text2)">Customer: <strong id="pay-cname" style="color:var(--text)"></strong></div><div style="font-size:13px;color:var(--text2);margin-top:4px">Balance: <strong id="pay-balance" style="color:var(--danger)"></strong></div></div>

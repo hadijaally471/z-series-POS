@@ -118,17 +118,17 @@ $pay_colors = [
   <div class="stat-card purple">
     <div class="stat-label">Active Sales Reps</div>
     <div class="stat-value"><?= count($rep_summary) ?></div>
-    <div class="stat-icon">👤</div>
+    <div class="stat-icon"></div>
   </div>
   <div class="stat-card green">
     <div class="stat-label">Total Transactions</div>
     <div class="stat-value"><?= number_format($total_tx) ?></div>
-    <div class="stat-icon">🛒</div>
+    <div class="stat-icon"></div>
   </div>
   <div class="stat-card blue">
     <div class="stat-label">Total Revenue</div>
     <div class="stat-value"><?= tzs($total_rev) ?></div>
-    <div class="stat-icon">💰</div>
+    <div class="stat-icon"></div>
   </div>
 </div>
 

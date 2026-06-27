@@ -67,14 +67,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($role, $available_roles, true)) $role = 'cashier';
         if (!in_array($status, $available_statuses, true)) $status = 'active';
         if ($name === '' || $username === '' || $password === '') {
-            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Name, username, and password are required.</div>';
+            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Name, username, and password are required.</div>';
         } else {
             $check = $conn->prepare("SELECT id FROM users WHERE username = ?");
             $check->bind_param('s', $username);
             $check->execute();
             $existing = $check->get_result()->fetch_assoc();
             if ($existing) {
-                $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Username already exists.</div>';
+                $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Username already exists.</div>';
             } else {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $privilege_string = privilegesToString(is_array($privileges) ? $privileges : []);
@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute();
                 logActivity($conn, "User created: $name ($username)", 'system');
                 $escaped_pwd = htmlspecialchars($password);
-                $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ User added! Password: <code style="background:rgba(0,0,0,0.2);padding:4px 8px;border-radius:4px;font-family:monospace;font-weight:bold">'.$escaped_pwd.'</code></div>';
+                $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">User added! Password: <code style="background:rgba(0,0,0,0.2);padding:4px 8px;border-radius:4px;font-family:monospace;font-weight:bold">'.$escaped_pwd.'</code></div>';
             }
         }
     } elseif ($action === 'edit') {
@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $check->execute();
         $existing = $check->get_result()->fetch_assoc();
         if ($existing) {
-            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ Username already exists.</div>';
+            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Username already exists.</div>';
         } else {
             $privilege_string = privilegesToString(is_array($privileges) ? $privileges : []);
             if ($password !== '') {
@@ -119,26 +119,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             logActivity($conn, "User updated: $name ($username)", 'system');
             if ($password !== '') {
                 $escaped_pwd = htmlspecialchars($password);
-                $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ User updated! New password: <code style="background:rgba(0,0,0,0.2);padding:4px 8px;border-radius:4px;font-family:monospace;font-weight:bold">'.$escaped_pwd.'</code></div>';
+                $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">User updated! New password: <code style="background:rgba(0,0,0,0.2);padding:4px 8px;border-radius:4px;font-family:monospace;font-weight:bold">'.$escaped_pwd.'</code></div>';
             } else {
-                $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ User updated!</div>';
+                $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">User updated!</div>';
             }
         }
     } elseif ($action === 'delete') {
         $id = sanitizeInt($_POST['id'] ?? 0);
         if ($id === (int)($_SESSION['user_id'] ?? 0)) {
-            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">❌ You cannot delete your own account.</div>';
+            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">You cannot delete your own account.</div>';
         } else {
             $stmt = $conn->prepare("SELECT name, username FROM users WHERE id = ?");
             $stmt->bind_param('i', $id);
             $stmt->execute();
             $user_row = $stmt->get_result()->fetch_assoc();
             if ($user_row) {
-                $delete_stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
-                $delete_stmt->bind_param('i', $id);
-                $delete_stmt->execute();
-                logActivity($conn, 'User deleted: ' . $user_row['name'] . ' (' . $user_row['username'] . ')', 'system');
-                $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">🗑️ User deleted!</div>';
+                try {
+                    $delete_stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+                    $delete_stmt->bind_param('i', $id);
+                    $delete_stmt->execute();
+                    logActivity($conn, 'User deleted: ' . $user_row['name'] . ' (' . $user_row['username'] . ')', 'system');
+                    $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">User deleted!</div>';
+                } catch (mysqli_sql_exception $e) {
+                    $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Cannot delete this user — they have sales or activity records linked to them.</div>';
+                }
             }
         }
     }
@@ -206,7 +210,7 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="id" value="<?=$u['id']?>">
               <?= csrfInput() ?>
-              <button type="submit" class="btn btn-danger btn-sm">🗑️</button>
+              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
             </form>
             <?php endif; ?>
           </td>
@@ -345,7 +349,7 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
 // Auto-dismiss notification message after 2 seconds
 document.addEventListener('DOMContentLoaded', function() {
   const msgDiv = document.querySelector('div[style*="color:var"]');
-  if (msgDiv && (msgDiv.textContent.includes('✅') || msgDiv.textContent.includes('❌') || msgDiv.textContent.includes('🗑️'))) {
+  if (msgDiv && (msgDiv.textContent.trim().length > 0)) {
     setTimeout(() => {
       msgDiv.style.opacity = '0';
       msgDiv.style.transition = 'opacity 0.3s ease-out';

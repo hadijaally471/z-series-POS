@@ -17,7 +17,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("INSERT INTO customers (name,phone,type,location) VALUES (?,?,?,?)");
         $stmt->bind_param('ssss',$name,$phone,$type,$location); $stmt->execute();
         logActivity($conn,"Customer added: $name",'customer');
-        $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Customer added!</div>';
+        $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Customer added!</div>';
+    }
+    if ($action === 'edit') {
+        $cid = sanitizeInt($_POST['customer_id'] ?? 0);
+        $name = sanitizeString($_POST['name'] ?? '', 200);
+        $phone = sanitizeString($_POST['phone'] ?? '', 40);
+        $type = in_array($_POST['type'] ?? '', $allowed_types, true) ? $_POST['type'] : 'rejareja';
+        $location = sanitizeString($_POST['location'] ?? '', 200);
+        if ($cid > 0 && $name !== '') {
+            $stmt = $conn->prepare("UPDATE customers SET name=?, phone=?, type=?, location=? WHERE id=?");
+            $stmt->bind_param('ssssi', $name, $phone, $type, $location, $cid);
+            $stmt->execute();
+            logActivity($conn, "Customer updated: $name", 'customer');
+            $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Customer updated!</div>';
+        }
     }
     if ($action === 'delete') {
         $cid = sanitizeInt($_POST['customer_id'] ?? 0);
@@ -26,11 +40,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param('i', $cid);
             $stmt->execute();
             $c = $stmt->get_result()->fetch_assoc();
-            $stmt = $conn->prepare("DELETE FROM customers WHERE id = ?");
-            $stmt->bind_param('i', $cid);
-            $stmt->execute();
-            logActivity($conn,"Customer deleted: " . ($c['name'] ?? 'Unknown'),'customer');
-            $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">🗑️ Customer deleted!</div>';
+            try {
+                $stmt = $conn->prepare("DELETE FROM customers WHERE id = ?");
+                $stmt->bind_param('i', $cid);
+                $stmt->execute();
+                logActivity($conn,"Customer deleted: " . ($c['name'] ?? 'Unknown'),'customer');
+                $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Customer deleted!</div>';
+            } catch (mysqli_sql_exception $e) {
+                $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Cannot delete this customer — they have sales or debts linked to them. Remove those records first.</div>';
+            }
         }
     }
 }
@@ -73,10 +91,10 @@ $cities = $conn->query("SELECT DISTINCT location FROM customers WHERE location I
 $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Moshi', 'Mwanza', 'Iringa', 'Morogoro', 'Tanga', 'Kigoma', 'Singida', 'Tabora'];
 ?>
 <div class="stats-grid">
-  <div class="stat-card purple"><div class="stat-label">Total Customers</div><div class="stat-value"><?=$stats['total']?></div><div class="stat-icon">👥</div></div>
-  <div class="stat-card blue"><div class="stat-label">Jumla Customers</div><div class="stat-value"><?=$stats['jum']?></div><div class="stat-icon">🏪</div></div>
-  <div class="stat-card green"><div class="stat-label">Rejareja Customers</div><div class="stat-value"><?=$stats['rej']?></div><div class="stat-icon">🛍️</div></div>
-  <div class="stat-card red"><div class="stat-label">Total Debt</div><div class="stat-value"><?=tzs($stats['total_debt'])?></div><div class="stat-icon">💰</div></div>
+  <div class="stat-card purple"><div class="stat-label">Total Customers</div><div class="stat-value"><?=$stats['total']?></div><div class="stat-icon"></div></div>
+  <div class="stat-card blue"><div class="stat-label">Jumla Customers</div><div class="stat-value"><?=$stats['jum']?></div><div class="stat-icon"></div></div>
+  <div class="stat-card green"><div class="stat-label">Rejareja Customers</div><div class="stat-value"><?=$stats['rej']?></div><div class="stat-icon"></div></div>
+  <div class="stat-card red"><div class="stat-label">Total Debt</div><div class="stat-value"><?=tzs($stats['total_debt'])?></div><div class="stat-icon"></div></div>
 </div>
 <?=$msg?>
 <form method="GET" style="display:contents">
@@ -101,19 +119,35 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
 <tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($c['name'])?></td><td><?=htmlspecialchars($c['phone'])?></td>
 <td><span class="badge badge-<?=$c['type']==='jumla'?'info':'purple'?>"><?=ucfirst($c['type'])?></span></td>
 <td><?=htmlspecialchars($c['location']??'—')?></td><td class="text-success"><?=tzs($c['total_purchases'])?></td>
-<td><form method="POST" style="display:inline" onsubmit="return confirm('Delete customer: <?=htmlspecialchars(str_replace("'", "\\'", $c['name']))?>\nThis action cannot be undone.');"><input type="hidden" name="action" value="delete"><input type="hidden" name="customer_id" value="<?=$c['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-sm btn-danger" style="padding:4px 8px;font-size:11px">🗑️ Delete</button></form></td></tr>
+<td style="display:flex;gap:6px;align-items:center">
+  <button type="button" class="btn btn-outline btn-sm" onclick='openEditCustomer(this)' data-id="<?=$c['id']?>" data-name="<?=htmlspecialchars($c['name'], ENT_QUOTES)?>" data-phone="<?=htmlspecialchars($c['phone'], ENT_QUOTES)?>" data-type="<?=htmlspecialchars($c['type'], ENT_QUOTES)?>" data-location="<?=htmlspecialchars($c['location'] ?? '', ENT_QUOTES)?>">Edit</button>
+  <form method="POST" style="margin:0" data-confirm="Delete <?=htmlspecialchars($c['name'], ENT_QUOTES)?>? This cannot be undone."><input type="hidden" name="action" value="delete"><input type="hidden" name="customer_id" value="<?=$c['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-sm btn-danger" style="padding:4px 8px;font-size:11px"></button></form>
+</td></tr>
 <?php endwhile; if($customers->num_rows===0): ?><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">No customers found</td></tr><?php endif;?></tbody></table></div></div>
-<div class="modal-overlay" id="add-customer-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Add Customer</span><button class="modal-close" onclick="closeModal('add-customer-modal')">✕</button></div>
+<div class="modal-overlay" id="add-customer-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Add Customer</span><button class="modal-close" onclick="closeModal('add-customer-modal')"></button></div>
 <form method="POST"><input type="hidden" name="action" value="add"><?= csrfInput() ?><div class="modal-body">
 <div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input name="name" class="form-control" required/></div><div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-control" placeholder="+255 7XX XXX XXX"/></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Customer Type</label><select name="type" class="form-control"><option value="rejareja">Rejareja (Retail)</option><option value="jumla">Jumla (Wholesale)</option></select></div><div class="form-group"><label class="form-label">City</label><select name="location" class="form-control" required><option value="">Select a city...</option><?php foreach($cities_list as $c): ?><option value="<?=htmlspecialchars($c)?>"><?=htmlspecialchars($c)?></option><?php endforeach; ?></select></div></div>
 </div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('add-customer-modal')">Cancel</button><button type="submit" class="btn btn-primary">Add Customer</button></div></form></div></div>
+<div class="modal-overlay" id="edit-customer-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Edit Customer</span><button class="modal-close" onclick="closeModal('edit-customer-modal')"></button></div>
+<form method="POST"><input type="hidden" name="action" value="edit"><input type="hidden" name="customer_id" id="edit-cust-id"><?= csrfInput() ?><div class="modal-body">
+<div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input name="name" id="edit-cust-name" class="form-control" required/></div><div class="form-group"><label class="form-label">Phone</label><input name="phone" id="edit-cust-phone" class="form-control"/></div></div>
+<div class="form-row"><div class="form-group"><label class="form-label">Customer Type</label><select name="type" id="edit-cust-type" class="form-control"><option value="rejareja">Rejareja (Retail)</option><option value="jumla">Jumla (Wholesale)</option></select></div><div class="form-group"><label class="form-label">City</label><select name="location" id="edit-cust-location" class="form-control" required><option value="">Select a city...</option><?php foreach($cities_list as $c): ?><option value="<?=htmlspecialchars($c)?>"><?=htmlspecialchars($c)?></option><?php endforeach; ?></select></div></div>
+</div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('edit-customer-modal')">Cancel</button><button type="submit" class="btn btn-primary">Save Changes</button></div></form></div></div>
 <?php require_once 'includes/footer.php'; ?>
 <script>
+function openEditCustomer(btn){
+  document.getElementById('edit-cust-id').value = btn.dataset.id;
+  document.getElementById('edit-cust-name').value = btn.dataset.name;
+  document.getElementById('edit-cust-phone').value = btn.dataset.phone;
+  document.getElementById('edit-cust-type').value = btn.dataset.type;
+  document.getElementById('edit-cust-location').value = btn.dataset.location;
+  openModal('edit-customer-modal');
+}
 // Auto-dismiss notification message after 2 seconds
 document.addEventListener('DOMContentLoaded', function() {
   const msgDiv = document.querySelector('div[style*="color:var"]');
-  if (msgDiv && (msgDiv.textContent.includes('✅') || msgDiv.textContent.includes('❌') || msgDiv.textContent.includes('🗑️'))) {
+  if (msgDiv) {
     setTimeout(() => {
       msgDiv.style.opacity = '0';
       msgDiv.style.transition = 'opacity 0.3s ease-out';

@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt=$conn->prepare("INSERT INTO employees (name,role,phone,salary,nida,start_date) VALUES (?,?,?,?,?,?)");
         $stmt->bind_param('sssdss',$name,$role,$phone,$salary,$nida,$start);$stmt->execute();
         logActivity($conn,"Employee added: $name",'system');
-        $msg='<div id="emp-msg" style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Employee added!</div>';
+        $msg='<div id="emp-msg" style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Employee added!</div>';
     } elseif ($action === 'delete') {
         $id = sanitizeInt($_POST['id'] ?? 0);
         $stmt = $conn->prepare("SELECT name FROM employees WHERE id = ?");
@@ -25,11 +25,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $employee_row = $stmt->get_result()->fetch_assoc();
         if ($employee_row) {
-          $delete_stmt = $conn->prepare("DELETE FROM employees WHERE id = ?");
-          $delete_stmt->bind_param('i', $id);
-          $delete_stmt->execute();
-          logActivity($conn, 'Employee deleted: ' . $employee_row['name'], 'system');
-          $msg='<div id="emp-msg" style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">🗑️ Employee deleted!</div>';
+          try {
+            $delete_stmt = $conn->prepare("DELETE FROM employees WHERE id = ?");
+            $delete_stmt->bind_param('i', $id);
+            $delete_stmt->execute();
+            logActivity($conn, 'Employee deleted: ' . $employee_row['name'], 'system');
+            $msg='<div id="emp-msg" style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Employee deleted!</div>';
+          } catch (mysqli_sql_exception $e) {
+            $msg='<div id="emp-msg" style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Cannot delete this employee — they have records linked to them.</div>';
+          }
         }
       } elseif ($action === 'edit') {
         $id = sanitizeInt($_POST['id'] ?? 0);
@@ -47,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param('sssdsssi', $name, $role, $phone, $salary, $nida, $start, $status, $id);
         $stmt->execute();
         logActivity($conn, "Employee updated: $name", 'system');
-        $msg='<div id="emp-msg" style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">✅ Employee updated!</div>';
+        $msg='<div id="emp-msg" style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Employee updated!</div>';
     }
 }
 $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active, SUM(status='on_leave') as leave_count, COALESCE(SUM(salary),0) as payroll FROM employees")->fetch_assoc();
@@ -101,24 +105,24 @@ if ($option_result) {
     <input type="hidden" name="action" value="delete">
     <input type="hidden" name="id" value="<?=$e['id']?>">
     <?= csrfInput() ?>
-    <button type="submit" class="btn btn-danger btn-sm">🗑️</button>
+    <button type="submit" class="btn btn-danger btn-sm"></button>
   </form>
 </td>
 </tr><?php endwhile;?></tbody></table></div></div>
-<div class="modal-overlay" id="add-emp-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Add Employee</span><button class="modal-close" onclick="closeModal('add-emp-modal')">✕</button></div>
+<div class="modal-overlay" id="add-emp-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Add Employee</span><button class="modal-close" onclick="closeModal('add-emp-modal')"></button></div>
 <form method="POST"><input type="hidden" name="action" value="add"><?= csrfInput() ?><div class="modal-body">
 <div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input name="name" class="form-control" required/></div><div class="form-group"><label class="form-label">Role / Position *</label><input name="role" class="form-control" placeholder="e.g. Sales Rep, Cashier, Driver" required/></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-control" placeholder="+255 7XX XXX XXX"/></div><div class="form-group"><label class="form-label">Monthly Salary (TZS)</label><input type="number" name="salary" class="form-control"/></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Start Date</label><input type="date" name="start_date" class="form-control" value="<?=date('Y-m-d')?>"/></div><div class="form-group"><label class="form-label">NIDA Number</label><input name="nida" class="form-control" placeholder="National ID"/></div></div>
 </div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('add-emp-modal')">Cancel</button><button type="submit" class="btn btn-primary">Add Employee</button></div></form></div></div>
-<div class="modal-overlay" id="edit-emp-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Edit Employee</span><button class="modal-close" onclick="closeModal('edit-emp-modal')">✕</button></div>
+<div class="modal-overlay" id="edit-emp-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Edit Employee</span><button class="modal-close" onclick="closeModal('edit-emp-modal')"></button></div>
 <form method="POST"><input type="hidden" name="action" value="edit"><input type="hidden" name="id" id="edit-id"><?= csrfInput() ?><div class="modal-body">
 <div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input name="name" id="edit-name" class="form-control" required/></div><div class="form-group"><label class="form-label">Role / Position *</label><input name="role" id="edit-role" class="form-control" placeholder="e.g. Sales Rep, Cashier, Driver" required/></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Phone</label><input name="phone" id="edit-phone" class="form-control"/></div><div class="form-group"><label class="form-label">Monthly Salary (TZS)</label><input type="number" name="salary" id="edit-salary" class="form-control"/></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Start Date</label><input type="date" name="start_date" id="edit-start" class="form-control"/></div><div class="form-group"><label class="form-label">NIDA Number</label><input name="nida" id="edit-nida" class="form-control"/></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Status</label><select name="status" id="edit-status" class="form-control"><option value="active">Active</option><option value="on_leave">On Leave</option><option value="inactive">Inactive</option></select></div><div></div></div>
 </div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('edit-emp-modal')">Cancel</button><button type="submit" class="btn btn-primary">Save Changes</button></div></form></div></div>
-<div class="modal-overlay" id="delete-emp-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Delete Employee</span><button class="modal-close" onclick="closeModal('delete-emp-modal')">✕</button></div>
+<div class="modal-overlay" id="delete-emp-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Delete Employee</span><button class="modal-close" onclick="closeModal('delete-emp-modal')"></button></div>
 <form method="POST" data-confirm="Delete this employee permanently? This cannot be undone."><input type="hidden" name="action" value="delete"><?= csrfInput() ?><div class="modal-body">
 <div class="form-group"><label class="form-label">Select Employee</label><select name="id" class="form-control" required>
   <option value="">Choose employee...</option>
