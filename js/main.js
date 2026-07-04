@@ -1,5 +1,31 @@
 // Z-Series POS — Main JavaScript
 
+// SIDEBAR TOGGLE (mobile)
+document.addEventListener('DOMContentLoaded',function(){
+  const sidebar = document.querySelector('.sidebar');
+  const toggleBtn = document.getElementById('sidebar-toggle');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if(!sidebar || !toggleBtn || !backdrop) return;
+
+  function openSidebar(){
+    sidebar.classList.add('open');
+    backdrop.classList.add('show');
+    toggleBtn.setAttribute('aria-expanded','true');
+  }
+  function closeSidebar(){
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('show');
+    toggleBtn.setAttribute('aria-expanded','false');
+  }
+  toggleBtn.addEventListener('click',function(){
+    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+  });
+  backdrop.addEventListener('click', closeSidebar);
+  sidebar.querySelectorAll('.nav-item').forEach(function(item){
+    item.addEventListener('click', closeSidebar);
+  });
+});
+
 // MODAL
 function openModal(id){document.getElementById(id).classList.add('show')}
 function closeModal(id){document.getElementById(id).classList.remove('show')}

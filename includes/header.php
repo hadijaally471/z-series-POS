@@ -99,12 +99,16 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
     <a href="logout.php" data-confirm="Are you sure you want to sign out?" class="logout-btn" style="display:block;text-align:center;text-decoration:none">Sign Out</a>
   </div>
 </div>
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
 <div class="main">
 <div class="topbar">
-  <div>
-    <div class="topbar-title"><?= $page_title ?? 'Dashboard' ?></div>
-    <div class="topbar-sub"><?= date('l, d F Y') ?></div>
+  <div class="topbar-left">
+    <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle" aria-label="Toggle sidebar" aria-expanded="false">☰</button>
+    <div>
+      <div class="topbar-title"><?= $page_title ?? 'Dashboard' ?></div>
+      <div class="topbar-sub"><?= date('l, d F Y') ?></div>
+    </div>
   </div>
   <div class="topbar-right">
     <?php if(isset($topbar_buttons)) echo $topbar_buttons; ?>
