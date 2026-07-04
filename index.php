@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="login-card">
     <div class="login-left">
       <div class="login-logo">
-        <div class="login-logo-icon">Z</div>
+        <img class="login-logo-icon" src="<?= htmlspecialchars(appPath('uploads/z series logo.png'), ENT_QUOTES) ?>" alt="Z-Series logo"/>
         <div class="login-logo-text-wrapper">
           <div class="login-logo-main">Z-SERIES</div>
           <div class="login-logo-sub">PRODUCTS MANAGEMENT</div>
@@ -49,21 +49,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
       <div class="login-title">Welcome Back</div>
       <div class="login-subtitle">Manage your tiles, soap & cashew nut business — sales, inventory, suppliers and more in one place.</div>
-      <div class="login-feature">
-        <div class="login-feature-icon"></div>
-        <div class="login-feature-text">Point of Sale — Jumla & Rejareja pricing</div>
-      </div>
-      <div class="login-feature">
-        <div class="login-feature-icon"></div>
-        <div class="login-feature-text">Inventory & Stock Management</div>
-      </div>
-      <div class="login-feature">
-        <div class="login-feature-icon"></div>
-        <div class="login-feature-text">Supplier & Farmer Management</div>
-      </div>
-      <div class="login-feature">
-        <div class="login-feature-icon"></div>
-        <div class="login-feature-text">Reports & Business Analytics</div>
+      <div class="login-features">
+        <div class="login-feature">
+          <div class="login-feature-icon"></div>
+          <div class="login-feature-text">Point of Sale — Jumla & Rejareja pricing</div>
+        </div>
+        <div class="login-feature">
+          <div class="login-feature-icon"></div>
+          <div class="login-feature-text">Inventory & Stock Management</div>
+        </div>
+        <div class="login-feature">
+          <div class="login-feature-icon"></div>
+          <div class="login-feature-text">Supplier & Farmer Management</div>
+        </div>
+        <div class="login-feature">
+          <div class="login-feature-icon"></div>
+          <div class="login-feature-text">Reports & Business Analytics</div>
+        </div>
       </div>
     </div>
     <div class="login-right">

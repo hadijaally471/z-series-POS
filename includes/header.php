@@ -29,7 +29,7 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
 <div class="layout">
 <div class="sidebar">
   <div class="sidebar-logo">
-    <div class="sidebar-logo-icon">Z</div>
+    <img class="sidebar-logo-icon" src="<?= htmlspecialchars(appPath('uploads/z series logo.png'), ENT_QUOTES) ?>" alt="Z-Series logo"/>
     <div>
       <div class="sidebar-logo-text">Z-SERIES</div>
       <div class="sidebar-logo-sub">Products POS</div>

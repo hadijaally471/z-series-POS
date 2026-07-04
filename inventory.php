@@ -3,6 +3,20 @@ $page_title = 'Inventory';
 require_once 'includes/header.php';
 requirePrivilege('inventory');
 
+const PRODUCT_CATALOG = [
+    'Cashew Nuts - Baked',
+    'Cashew Nuts - Mbichi (Raw)',
+    'Cashew Nuts - Roasted',
+    'Liquid Soap (1L)',
+    'Liquid Soap (5L)',
+    'Master 23 Special for Tiles (1L)',
+    'Master 23 Special for Tiles (5L)',
+    'Master 23 Tiles and Sink Cleaner (1L)',
+    'Master 23 Tiles and Sink Cleaner (5L)',
+    'Z Series Tiles and Sink Cleaner (1L)',
+    'Z Series Tiles and Sink Cleaner (5L)',
+];
+
 // Handle add/edit/delete
 $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['export'] ?? '') === 'csv') {
@@ -230,12 +244,12 @@ $ok_count   = $total_products - $low_count - $out_count;
           </td>
           <td>
             <div class="action-buttons">
-              <button class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='editProduct(<?= json_encode($p) ?>)'></button>
+              <button class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='editProduct(<?= json_encode($p) ?>)'>✏️</button>
               <form method="POST" onsubmit="return confirm('Remove this product?')">
                 <?= csrfInput() ?>
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="id" value="<?= $p['id'] ?>"/>
-                <button type="submit" class="btn btn-danger btn-sm" title="Delete" aria-label="Delete"></button>
+                <button type="submit" class="btn btn-danger btn-sm" title="Delete" aria-label="Delete">🗑️</button>
               </form>
             </div>
           </td>
@@ -289,7 +303,14 @@ $ok_count   = $total_products - $low_count - $out_count;
       <input type="hidden" name="id" id="product-id"/>
       <div class="modal-body">
         <div class="form-row">
-            <div class="form-group"><label class="form-label">Product Name *</label><input name="name" id="p-name" class="form-control" placeholder="e.g. Master 23 Tiles and Sink Cleaner 1L" required/></div>
+          <div class="form-group"><label class="form-label">Product Name *</label>
+            <select name="name" id="p-name" class="form-control" required>
+              <option value="">Select product</option>
+              <?php foreach (PRODUCT_CATALOG as $p_name): ?>
+              <option value="<?= htmlspecialchars($p_name) ?>"><?= htmlspecialchars($p_name) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
           <div class="form-group"><label class="form-label">Category *</label>
             <select name="category_id" id="p-cat" class="form-control" required>
               <option value="">Select category</option>
@@ -307,11 +328,10 @@ $ok_count   = $total_products - $low_count - $out_count;
           <div class="form-group"><label class="form-label">Stock Quantity *</label><input type="number" name="stock" id="p-stock" class="form-control" placeholder="0" required/></div>
           <div class="form-group"><label class="form-label">Unit</label>
             <select name="unit" id="p-unit" class="form-control">
-              <option value="pcs">Pieces (pcs)</option>
               <option value="kg">Kilograms (kg)</option>
-              <option value="bag">Bags</option>
-              <option value="litre">Litres</option>
-              <option value="box">Boxes</option>
+              <option value="L">Litres (L)</option>
+              <option value="carton">Cartons</option>
+              <option value="pcs">Pieces (pcs)</option>
             </select>
           </div>
         </div>

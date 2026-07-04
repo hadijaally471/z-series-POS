@@ -98,8 +98,8 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(type='chemicals') as chemic
 <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?=htmlspecialchars($s['products_supplied']??'—')?></td>
 <td class="text-purple"><?=tzs($s['total_purchased'])?></td>
 <td style="display:flex;gap:6px;align-items:center">
-  <button type="button" class="btn btn-outline btn-sm" onclick='openEditSupplier(this)' data-id="<?=$s['id']?>" data-name="<?=htmlspecialchars($s['name'], ENT_QUOTES)?>" data-type="<?=htmlspecialchars($s['type'], ENT_QUOTES)?>" data-phone="<?=htmlspecialchars($s['phone'], ENT_QUOTES)?>" data-location="<?=htmlspecialchars($s['location'], ENT_QUOTES)?>" data-products="<?=htmlspecialchars($s['products_supplied'] ?? '', ENT_QUOTES)?>">Edit</button>
-  <form method="POST" style="margin:0" data-confirm="Delete <?=htmlspecialchars($s['name'], ENT_QUOTES)?>? This cannot be undone."><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?=$s['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-danger btn-sm"></button></form>
+  <button type="button" class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='openEditSupplier(this)' data-id="<?=$s['id']?>" data-name="<?=htmlspecialchars($s['name'], ENT_QUOTES)?>" data-type="<?=htmlspecialchars($s['type'], ENT_QUOTES)?>" data-phone="<?=htmlspecialchars($s['phone'], ENT_QUOTES)?>" data-location="<?=htmlspecialchars($s['location'], ENT_QUOTES)?>" data-products="<?=htmlspecialchars($s['products_supplied'] ?? '', ENT_QUOTES)?>">✏️</button>
+  <form method="POST" style="margin:0" data-confirm="Delete <?=htmlspecialchars($s['name'], ENT_QUOTES)?>? This cannot be undone."><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?=$s['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-danger btn-sm" title="Delete" aria-label="Delete">🗑️</button></form>
 </td></tr>
 <?php endwhile; if($suppliers->num_rows===0): ?><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">No suppliers found</td></tr><?php endif;?></tbody></table></div></div>
 

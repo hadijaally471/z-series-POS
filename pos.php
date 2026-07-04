@@ -7,8 +7,8 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY name");
 $products_result = $conn->query("SELECT p.*, c.name as cat_name FROM products p LEFT JOIN categories c ON p.category_id=c.id WHERE p.status='active' ORDER BY c.name, p.name");
 $products = [];
 while ($r = $products_result->fetch_assoc()) $products[] = $r;
-$customers_result = $conn->query("SELECT * FROM customers ORDER BY name");
-$sales_reps = $conn->query("SELECT id, name, role FROM employees WHERE status='active' ORDER BY name");
+$customers_result = $conn->query("SELECT c.*, cat.name as category_name FROM customers c LEFT JOIN categories cat ON c.category_id=cat.id ORDER BY c.name");
+$sales_reps = $conn->query("SELECT id, name, role FROM employees WHERE status='active' AND role='Sales Rep' ORDER BY name");
 $business_address = getSetting($conn,'business_address');
 $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Moshi', 'Mwanza', 'Iringa', 'Morogoro', 'Tanga', 'Kigoma', 'Singida', 'Tabora'];
 ?>
@@ -62,13 +62,14 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
       <select class="form-control" id="customer-select" style="font-size:12px">
         <option value="">Walk-in Customer</option>
         <?php $customers_result->data_seek(0); while($c = $customers_result->fetch_assoc()): ?>
-        <option value="<?= $c['id'] ?>" data-type="<?= $c['type'] ?>" data-location="<?= htmlspecialchars($c['location'] ?? '') ?>"><?= htmlspecialchars($c['name']) ?> (<?= ucfirst($c['type']) ?>)</option>
+        <option value="<?= $c['id'] ?>" data-location="<?= htmlspecialchars($c['location'] ?? '') ?>"><?= htmlspecialchars($c['name']) ?><?= $c['category_name'] ? ' ('.htmlspecialchars($c['category_name']).')' : '' ?></option>
         <?php endwhile; ?>
       </select>
       <div style="margin-top:8px">
         <select class="form-control" id="customer-city" style="font-size:12px">
+          <option value="">Choose Region</option>
           <?php foreach ($cities_list as $city): ?>
-          <option value="<?= htmlspecialchars($city) ?>" <?= $city === 'Arusha' ? 'selected' : '' ?>><?= htmlspecialchars($city) ?></option>
+          <option value="<?= htmlspecialchars($city) ?>"><?= htmlspecialchars($city) ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -76,7 +77,7 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
         <select class="form-control" id="sales-rep-select" style="font-size:12px">
           <option value="">— Sales Rep (optional) —</option>
           <?php while($rep = $sales_reps->fetch_assoc()): ?>
-          <option value="<?= $rep['id'] ?>"><?= htmlspecialchars($rep['name']) ?> (<?= htmlspecialchars($rep['role']) ?>)</option>
+          <option value="<?= $rep['id'] ?>"><?= htmlspecialchars($rep['name']) ?></option>
           <?php endwhile; ?>
         </select>
       </div>
@@ -95,14 +96,8 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
 
     <!-- Footer -->
     <div class="pos-footer">
-      <!-- Discount -->
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-        <span style="font-size:11px;color:var(--text3);flex-shrink:0">Discount (TZS):</span>
-        <input type="number" id="discount-input" class="form-control" style="flex:1;padding:6px 10px;font-size:12px" placeholder="0" value="0" oninput="updateTotals()"/>
-      </div>
       <div class="pos-totals">
         <div class="pos-total-row"><span>Subtotal</span><span id="cart-subtotal">TZS 0</span></div>
-        <div class="pos-total-row"><span>Discount</span><span id="cart-discount">TZS 0</span></div>
         <div class="pos-total-row grand"><span>TOTAL</span><span id="cart-total">TZS 0</span></div>
       </div>
       <div class="pay-methods">
@@ -217,19 +212,14 @@ function renderCart(){
 
 function updateTotals(){
   const sub = cart.reduce((s,i)=>s+i[priceType]*i.qty,0);
-  const disc = Math.max(0,+document.getElementById('discount-input').value||0);
-  const total = Math.max(0, sub-disc);
   document.getElementById('cart-subtotal').textContent = fmt(sub);
-  document.getElementById('cart-discount').textContent  = fmt(disc);
-  document.getElementById('cart-total').textContent    = fmt(total);
+  document.getElementById('cart-total').textContent    = fmt(sub);
 }
 
 function processSale(){
   if(!cart.length){showToast('Cart is empty!','error');return;}
   const sub = cart.reduce((s,i)=>s+i[priceType]*i.qty,0);
-  const disc = Math.max(0,+document.getElementById('discount-input').value||0);
-  if(disc > sub){showToast('Discount cannot exceed subtotal.','error');return;}
-  const total = Math.max(0,sub-disc);
+  const total = sub;
   const customerId = document.getElementById('customer-select').value;
   const customerName = document.getElementById('customer-select').selectedOptions[0].text;
   const customerCity = document.getElementById('customer-city').value;
@@ -240,22 +230,21 @@ function processSale(){
   fetch('api/sales.php', {
     method:'POST',
     headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-    body: JSON.stringify({cart,priceType,payMethod,discount:disc,total,sub,customerId,customerName:customerId?customerName:'Walk-in',customerCity,salesRepId})
+    body: JSON.stringify({cart,priceType,payMethod,discount:0,total,sub,customerId,customerName:customerId?customerName:'Walk-in',customerCity,salesRepId})
   })
   .then(r=>r.json())
   .then(data=>{
     if(data.success){
-      showReceipt(data.receipt_number, customerName, total, disc, sub, salesRepName);
+      showReceipt(data.receipt_number, customerName, total, sub, salesRepName);
       cart=[];renderCart();
       localStorage.removeItem(POS_STORAGE_KEY);
-      document.getElementById('discount-input').value=0;
       document.getElementById('customer-select').value='';
       document.getElementById('sales-rep-select').value='';
     } else showToast(data.message||'Error!','error');
   }).catch(()=>showToast('Connection error!','error'));
 }
 
-function showReceipt(rno, customer, total, disc, sub, salesRepName){
+function showReceipt(rno, customer, total, sub, salesRepName){
   const date = new Date().toLocaleString('en-TZ');
   const items = cart.map(i=>`<div class="receipt-row"><span>${i.name} x${i.qty}</span><span>${fmt(i[priceType]*i.qty)}</span></div>`).join('');
   const repLine = salesRepName ? `<div class="receipt-row"><span>Sales Rep:</span><span>${salesRepName}</span></div>` : '';
@@ -276,7 +265,6 @@ function showReceipt(rno, customer, total, disc, sub, salesRepName){
       ${items}
       <hr class="receipt-divider"/>
       <div class="receipt-row"><span>Subtotal:</span><span>${fmt(sub)}</span></div>
-      <div class="receipt-row"><span>Discount:</span><span>${fmt(disc)}</span></div>
       <div class="receipt-row receipt-total"><span>TOTAL:</span><span>${fmt(total)}</span></div>
       <div class="receipt-footer"><div>Thank you for your business!</div><div>Z-Series Products © 2026</div></div>
     </div>`;
@@ -294,7 +282,6 @@ function savePosState(){
       cart: cart,
       priceType: priceType,
       payMethod: payMethod,
-      discount: document.getElementById('discount-input') ? document.getElementById('discount-input').value : 0,
       customer: document.getElementById('customer-select') ? document.getElementById('customer-select').value : '',
       salesRep: document.getElementById('sales-rep-select') ? document.getElementById('sales-rep-select').value : ''
     };
@@ -310,7 +297,6 @@ function loadPosState(){
     if(Array.isArray(s.cart)) cart = s.cart;
     if(s.priceType) priceType = s.priceType;
     if(s.payMethod) payMethod = s.payMethod;
-    if(document.getElementById('discount-input') && typeof s.discount !== 'undefined') document.getElementById('discount-input').value = s.discount;
     if(document.getElementById('customer-select') && typeof s.customer !== 'undefined') document.getElementById('customer-select').value = s.customer;
     if(document.getElementById('sales-rep-select') && typeof s.salesRep !== 'undefined') document.getElementById('sales-rep-select').value = s.salesRep;
     if(priceType) {

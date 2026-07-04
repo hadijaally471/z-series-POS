@@ -88,11 +88,12 @@ CREATE TABLE customers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
   phone VARCHAR(20),
-  type ENUM('rejareja','jumla') DEFAULT 'rejareja',
+  category_id INT,
   location VARCHAR(200),
   total_purchases DECIMAL(15,2) DEFAULT 0,
   outstanding_debt DECIMAL(12,2) DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
 -- SALES
@@ -135,12 +136,14 @@ CREATE TABLE expenses (
   id INT AUTO_INCREMENT PRIMARY KEY,
   description VARCHAR(255) NOT NULL,
   category ENUM('transport','utilities','staff','raw_materials','rent','maintenance','other') DEFAULT 'other',
+  employee_id INT,
   amount DECIMAL(12,2) NOT NULL,
   expense_date DATE NOT NULL,
   recorded_by INT,
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (recorded_by) REFERENCES users(id)
+  FOREIGN KEY (recorded_by) REFERENCES users(id),
+  FOREIGN KEY (employee_id) REFERENCES employees(id)
 );
 
 -- DEBTS
@@ -239,12 +242,12 @@ INSERT INTO products (name, category_id, supplier_id, rejareja_price, jumla_pric
 ('Cashew Nuts Grade A (5kg)', 3, 1, 85000, 70000, 6, 'bag', 3);
 
 -- Customers
-INSERT INTO customers (name, phone, type, location, total_purchases, outstanding_debt) VALUES
-('Hassan Ally', '+255 712 111 222', 'jumla', 'Kariakoo, DSM', 2450000, 450000),
-('Fatuma Said', '+255 723 333 444', 'rejareja', 'Kinondoni, DSM', 385000, 0),
-('Amina Shop', '+255 734 555 666', 'jumla', 'Ilala, DSM', 1200000, 350000),
-('Juma Rashidi', '+255 745 777 888', 'rejareja', 'Temeke, DSM', 145000, 45000),
-('Zuwena Stores', '+255 756 999 000', 'jumla', 'Msasani, DSM', 3800000, 0);
+INSERT INTO customers (name, phone, location, total_purchases, outstanding_debt) VALUES
+('Hassan Ally', '+255 712 111 222', 'Kariakoo, DSM', 2450000, 450000),
+('Fatuma Said', '+255 723 333 444', 'Kinondoni, DSM', 385000, 0),
+('Amina Shop', '+255 734 555 666', 'Ilala, DSM', 1200000, 350000),
+('Juma Rashidi', '+255 745 777 888', 'Temeke, DSM', 145000, 45000),
+('Zuwena Stores', '+255 756 999 000', 'Msasani, DSM', 3800000, 0);
 
 -- Employees
 INSERT INTO employees (name, role, phone, salary, start_date, status) VALUES

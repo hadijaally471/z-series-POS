@@ -196,7 +196,7 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
           <td><span class="badge badge-purple"><?=htmlspecialchars(ucfirst($u['role']))?></span></td>
           <td><span class="badge badge-<?= $u['status']==='active' ? 'success' : 'danger' ?>"><?=htmlspecialchars(ucfirst($u['status']))?></span></td>
           <td style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <button type="button" class="btn btn-outline btn-sm" onclick='openEditUser(this)'
+            <button type="button" class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='openEditUser(this)'
               data-id="<?=$u['id']?>"
               data-name="<?=htmlspecialchars($u['name'], ENT_QUOTES)?>"
               data-username="<?=htmlspecialchars($u['username'], ENT_QUOTES)?>"
@@ -204,13 +204,13 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
               data-phone="<?=htmlspecialchars($u['phone'], ENT_QUOTES)?>"
               data-status="<?=htmlspecialchars($u['status'], ENT_QUOTES)?>"
               data-privileges="<?=htmlspecialchars($u['privileges'] ?? '', ENT_QUOTES)?>"
-            >Edit</button>
+            >✏️</button>
             <?php if ((int)$u['id'] !== (int)($_SESSION['user_id'] ?? 0)): ?>
             <form method="POST" onsubmit="return confirm('Delete <?=htmlspecialchars($u['name'], ENT_QUOTES)?>?')" style="margin:0">
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="id" value="<?=$u['id']?>">
               <?= csrfInput() ?>
-              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              <button type="submit" class="btn btn-danger btn-sm" title="Delete" aria-label="Delete">🗑️</button>
             </form>
             <?php endif; ?>
           </td>
