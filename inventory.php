@@ -354,7 +354,13 @@ function editProduct(p){
   document.getElementById('product-modal-title').textContent = 'Edit Product';
   document.getElementById('product-action').value = 'edit';
   document.getElementById('product-id').value = p.id;
-  document.getElementById('p-name').value = p.name;
+  const nameSelect = document.getElementById('p-name');
+  if(p.name && ![...nameSelect.options].some(o=>o.value===p.name)){
+    const opt = document.createElement('option');
+    opt.value = p.name; opt.textContent = p.name;
+    nameSelect.appendChild(opt);
+  }
+  nameSelect.value = p.name;
   document.getElementById('p-cat').value = p.category_id;
   document.getElementById('p-rej').value = p.rejareja_price;
   document.getElementById('p-jum').value = p.jumla_price;

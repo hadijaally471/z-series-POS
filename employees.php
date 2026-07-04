@@ -163,7 +163,14 @@ function seedEmployees(){
 function openEditEmployee(button){
   document.getElementById('edit-id').value = button.dataset.id || '';
   document.getElementById('edit-name').value = button.dataset.name || '';
-  document.getElementById('edit-role').value = button.dataset.role || 'Cashier';
+  const roleSelect = document.getElementById('edit-role');
+  const roleVal = button.dataset.role || 'Cashier';
+  if(roleVal && ![...roleSelect.options].some(o=>o.value===roleVal)){
+    const opt = document.createElement('option');
+    opt.value = roleVal; opt.textContent = roleVal;
+    roleSelect.appendChild(opt);
+  }
+  roleSelect.value = roleVal;
   document.getElementById('edit-phone').value = button.dataset.phone || '';
   document.getElementById('edit-salary').value = button.dataset.salary || '';
   document.getElementById('edit-nida').value = button.dataset.nida || '';

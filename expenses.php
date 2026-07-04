@@ -77,7 +77,7 @@ $employees_list = $conn->query("SELECT id, name FROM employees WHERE status='act
 <td class="text-muted"><?=$e['employee_name'] ? htmlspecialchars($e['employee_name']) : '—'?></td>
 <td class="text-danger"><?=tzs($e['amount'])?></td><td class="text-muted"><?=date('M d, Y',strtotime($e['expense_date']))?></td>
 <td style="display:flex;gap:6px;align-items:center">
-  <button type="button" class="btn btn-outline btn-sm" onclick='openEditExpense(this)' data-id="<?=$e['id']?>" data-desc="<?=htmlspecialchars($e['description'], ENT_QUOTES)?>" data-cat="<?=htmlspecialchars($e['category'], ENT_QUOTES)?>" data-employee="<?=htmlspecialchars($e['employee_id'] ?? '', ENT_QUOTES)?>" data-amount="<?=$e['amount']?>" data-date="<?=$e['expense_date']?>">Edit</button>
+  <button type="button" class="btn btn-outline btn-sm" onclick='openEditExpense(this)' data-id="<?=$e['id']?>" data-desc="<?=htmlspecialchars($e['description'], ENT_QUOTES)?>" data-cat="<?=htmlspecialchars($e['category'], ENT_QUOTES)?>" data-employee="<?=htmlspecialchars($e['employee_id'] ?? '', ENT_QUOTES)?>" data-employee-name="<?=htmlspecialchars($e['employee_name'] ?? '', ENT_QUOTES)?>" data-amount="<?=$e['amount']?>" data-date="<?=$e['expense_date']?>">Edit</button>
   <form method="POST" style="margin:0" data-confirm="Delete this expense?"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?=$e['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-danger btn-sm">Delete</button></form>
 </td></tr>
 <?php endwhile; if($expenses->num_rows===0):?><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">No expenses recorded</td></tr><?php endif;?></tbody></table></div></div>
@@ -106,7 +106,13 @@ function openEditExpense(btn){
   document.getElementById('edit-exp-id').value = btn.dataset.id;
   document.getElementById('edit-exp-desc').value = btn.dataset.desc;
   document.getElementById('edit-exp-cat').value = btn.dataset.cat;
-  document.getElementById('edit-exp-employee').value = btn.dataset.employee;
+  const empSelect = document.getElementById('edit-exp-employee');
+  if(btn.dataset.employee && ![...empSelect.options].some(o=>o.value===btn.dataset.employee)){
+    const opt = document.createElement('option');
+    opt.value = btn.dataset.employee; opt.textContent = btn.dataset.employeeName || ('#'+btn.dataset.employee);
+    empSelect.appendChild(opt);
+  }
+  empSelect.value = btn.dataset.employee;
   document.getElementById('edit-exp-amount').value = btn.dataset.amount;
   document.getElementById('edit-exp-date').value = btn.dataset.date;
   openModal('edit-expense-modal');
