@@ -7,3 +7,17 @@ Options -Indexes
 <FilesMatch "\.(env|ini|log|bak|sql)$">
   Require all denied
 </FilesMatch>
+
+RewriteEngine On
+
+# Leave API/script endpoints untouched — they're called directly with .php by JS/fetch
+RewriteRule ^(api|scripts)/ - [L]
+
+# If the browser was sent to something.php, redirect to the clean URL (no .php)
+RewriteCond %{THE_REQUEST} \s/+(.+?)\.php[\s?] [NC]
+RewriteRule ^ /%1 [R=301,L]
+
+# Serve clean URLs (e.g. /dashboard) from their matching .php file
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.+)$ $1.php [L]
