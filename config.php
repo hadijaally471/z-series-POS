@@ -36,6 +36,12 @@ function appPath($path = '') {
     return appBaseUrl() . '/' . $path;
 }
 
+function fullUrl($path = '') {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') == 443 ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $scheme . '://' . $host . appPath($path);
+}
+
 function redirectTo($path) {
     header('Location: ' . appPath($path));
     exit();

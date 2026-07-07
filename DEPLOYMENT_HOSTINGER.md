@@ -35,6 +35,11 @@ define('DB_NAME', 'your_hostinger_db_name');
 Keep `config.local.php` on the server only and do not upload it to public source control.
 Do not use the XAMPP `root` user online.
 
+To enable "Forgot password" on the login page, also add the `SMTP_*` constants
+from `config.local.example.php`, pointed at a real mailbox — either a Hostinger
+email account (hPanel > Emails) or a Gmail address with an app password. Then
+add an email address to each user account that should be able to use it (Users > Edit).
+
 ## 4. First Login
 
 Login with the default admin account, then immediately change the password:

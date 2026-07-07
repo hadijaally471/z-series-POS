@@ -61,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = sanitizeString($_POST['name'] ?? '', 150);
         $username = sanitizeString($_POST['username'] ?? '', 50);
         $password = (string)($_POST['password'] ?? '');
+        $email = validateEmail(trim($_POST['email'] ?? ''));
         $role = sanitizeString($_POST['role'] ?? 'cashier', 20);
         $phone = sanitizeString($_POST['phone'] ?? '', 30);
         $status = sanitizeString($_POST['status'] ?? 'active', 20);
@@ -80,8 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $privilege_string = privilegesToString(is_array($privileges) ? $privileges : []);
-                $stmt = $conn->prepare("INSERT INTO users (name, username, password, role, phone, status, privileges) VALUES (?,?,?,?,?,?,?)");
-                $stmt->bind_param('sssssss', $name, $username, $hash, $role, $phone, $status, $privilege_string);
+                $stmt = $conn->prepare("INSERT INTO users (name, username, password, email, role, phone, status, privileges) VALUES (?,?,?,?,?,?,?,?)");
+                $stmt->bind_param('ssssssss', $name, $username, $hash, $email, $role, $phone, $status, $privilege_string);
                 $stmt->execute();
                 logActivity($conn, "User created: $name ($username)", 'system');
                 $escaped_pwd = htmlspecialchars($password);
@@ -93,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = sanitizeString($_POST['name'] ?? '', 150);
         $username = sanitizeString($_POST['username'] ?? '', 50);
         $password = (string)($_POST['password'] ?? '');
+        $email = validateEmail(trim($_POST['email'] ?? ''));
         $role = sanitizeString($_POST['role'] ?? 'cashier', 20);
         $phone = sanitizeString($_POST['phone'] ?? '', 30);
         $status = sanitizeString($_POST['status'] ?? 'active', 20);
@@ -111,11 +113,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $privilege_string = privilegesToString(is_array($privileges) ? $privileges : []);
             if ($password !== '') {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $conn->prepare("UPDATE users SET name=?, username=?, password=?, role=?, phone=?, status=?, privileges=? WHERE id=?");
-                $stmt->bind_param('sssssssi', $name, $username, $hash, $role, $phone, $status, $privilege_string, $id);
+                $stmt = $conn->prepare("UPDATE users SET name=?, username=?, password=?, email=?, role=?, phone=?, status=?, privileges=? WHERE id=?");
+                $stmt->bind_param('ssssssssi', $name, $username, $hash, $email, $role, $phone, $status, $privilege_string, $id);
             } else {
-                $stmt = $conn->prepare("UPDATE users SET name=?, username=?, role=?, phone=?, status=?, privileges=? WHERE id=?");
-                $stmt->bind_param('ssssssi', $name, $username, $role, $phone, $status, $privilege_string, $id);
+                $stmt = $conn->prepare("UPDATE users SET name=?, username=?, email=?, role=?, phone=?, status=?, privileges=? WHERE id=?");
+                $stmt->bind_param('sssssssi', $name, $username, $email, $role, $phone, $status, $privilege_string, $id);
             }
             $stmt->execute();
             logActivity($conn, "User updated: $name ($username)", 'system');
@@ -202,6 +204,7 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
               data-id="<?=$u['id']?>"
               data-name="<?=htmlspecialchars($u['name'], ENT_QUOTES)?>"
               data-username="<?=htmlspecialchars($u['username'], ENT_QUOTES)?>"
+              data-email="<?=htmlspecialchars($u['email'] ?? '', ENT_QUOTES)?>"
               data-role="<?=htmlspecialchars($u['role'], ENT_QUOTES)?>"
               data-phone="<?=htmlspecialchars($u['phone'], ENT_QUOTES)?>"
               data-status="<?=htmlspecialchars($u['status'], ENT_QUOTES)?>"
@@ -238,6 +241,7 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
           <div class="form-group"><label class="form-label">Password *</label><input type="password" name="password" class="form-control" required/></div>
           <div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-control" placeholder="+255 7XX XXX XXX"/></div>
         </div>
+        <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-control" placeholder="For password reset emails" autocomplete="off"/></div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Role</label>
@@ -288,6 +292,7 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
           <div class="form-group"><label class="form-label">New Password</label><input type="password" name="password" id="edit-user-password" class="form-control" placeholder="Leave blank to keep current" autocomplete="new-password"/></div>
           <div class="form-group"><label class="form-label">Phone</label><input name="phone" id="edit-user-phone" class="form-control"/></div>
         </div>
+        <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" id="edit-user-email" class="form-control" placeholder="For password reset emails" autocomplete="off"/></div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Role</label>
@@ -364,6 +369,7 @@ function openEditUser(button){
   document.getElementById('edit-user-id').value = button.dataset.id || '';
   document.getElementById('edit-user-name').value = button.dataset.name || '';
   document.getElementById('edit-user-username').value = button.dataset.username || '';
+  document.getElementById('edit-user-email').value = button.dataset.email || '';
   document.getElementById('edit-user-password').value = '';
   document.getElementById('edit-user-role').value = button.dataset.role || 'cashier';
   document.getElementById('edit-user-phone').value = button.dataset.phone || '';
