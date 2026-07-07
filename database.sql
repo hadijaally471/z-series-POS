@@ -44,6 +44,15 @@ CREATE TABLE password_resets (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+-- RATE LIMITS (login lockout, forgot-password abuse prevention)
+CREATE TABLE rate_limits (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  action VARCHAR(50) NOT NULL,
+  identifier VARCHAR(150) NOT NULL,
+  attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_action_identifier (action, identifier)
+);
+
 -- CATEGORIES
 CREATE TABLE categories (
   id INT AUTO_INCREMENT PRIMARY KEY,

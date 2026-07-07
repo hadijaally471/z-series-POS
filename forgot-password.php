@@ -9,7 +9,12 @@ $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
     $identifier = trim($_POST['identifier'] ?? '');
-    if ($identifier !== '') {
+    $rateKey = strtolower($identifier);
+
+    $rateLimited = $identifier !== '' && tooManyAttempts($conn, 'forgot_password', $rateKey, 3, 15);
+
+    if ($identifier !== '' && !$rateLimited) {
+        recordAttempt($conn, 'forgot_password', $rateKey);
         $stmt = $conn->prepare("SELECT * FROM users WHERE (username = ? OR email = ?) AND status = 'active'");
         $stmt->bind_param('ss', $identifier, $identifier);
         $stmt->execute();
@@ -41,9 +46,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             logActivity($conn, 'Password reset requested: ' . $user['username'], 'system');
         }
     }
-    // Always show the same message whether or not the account was found —
-    // avoids revealing which usernames/emails exist in the system.
-    $message = 'If that account exists and has an email on file, a password reset link has been sent to it.';
+    if ($rateLimited) {
+        $message = 'Too many reset requests for this account. Please try again in 15 minutes.';
+    } else {
+        // Always show the same message whether or not the account was found —
+        // avoids revealing which usernames/emails exist in the system.
+        $message = 'If that account exists and has an email on file, a password reset link has been sent to it.';
+    }
 }
 ?>
 <!DOCTYPE html>

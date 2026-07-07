@@ -24,8 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $new_pass = $_POST['new_password'] ?? '';
         $confirm_pass = $_POST['confirm_password'] ?? '';
         $uid = $_SESSION['user_id'];
-        if (strlen($new_pass) < 6) {
-            $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">New password must be at least 6 characters.</div>';
+        if (strlen($new_pass) < 8) {
+            $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">New password must be at least 8 characters.</div>';
         } elseif ($new_pass !== $confirm_pass) {
             $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">New passwords do not match.</div>';
         } else {
@@ -64,8 +64,8 @@ function gs($conn,$k){return htmlspecialchars(getSetting($conn,$k));}
 <div><div class="card"><div class="card-header"><span class="card-title">Change Password</span></div>
 <div class="card-body"><form method="POST"><input type="hidden" name="action" value="password"><?= csrfInput() ?>
 <div class="form-group"><label class="form-label">Current Password</label><input type="password" name="current_password" class="form-control" required/></div>
-<div class="form-group"><label class="form-label">New Password (min 6 characters)</label><input type="password" name="new_password" class="form-control" minlength="6" required/></div>
-<div class="form-group"><label class="form-label">Confirm New Password</label><input type="password" name="confirm_password" class="form-control" minlength="6" required/></div>
+<div class="form-group"><label class="form-label">New Password (min 8 characters)</label><input type="password" name="new_password" class="form-control" minlength="8" required/></div>
+<div class="form-group"><label class="form-label">Confirm New Password</label><input type="password" name="confirm_password" class="form-control" minlength="8" required/></div>
 <button type="submit" class="btn btn-primary">Update Password</button>
 </form></div></div>
 

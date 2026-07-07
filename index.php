@@ -8,20 +8,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND status = 'active'");
-    $stmt->bind_param('s', $username);
-    $stmt->execute();
-    $user = $stmt->get_result()->fetch_assoc();
-    if ($user && password_verify($password, $user['password'])) {
-      session_regenerate_id(true);
-        $_SESSION['user_id']   = $user['id'];
-        $_SESSION['user_name'] = $user['name'];
-        $_SESSION['user_role'] = $user['role'];
-        $_SESSION['user_privileges'] = $user['privileges'] ?? '';
-        logActivity($conn, 'User logged in: ' . $user['name'], 'system');
-        redirectTo('dashboard.php');
+    $loginKey = strtolower($username);
+
+    if ($username !== '' && tooManyAttempts($conn, 'login', $loginKey, 5, 15)) {
+        $error = 'Too many failed login attempts. Please try again in 15 minutes.';
     } else {
-        $error = 'Invalid username or password. Please try again.';
+        $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND status = 'active'");
+        $stmt->bind_param('s', $username);
+        $stmt->execute();
+        $user = $stmt->get_result()->fetch_assoc();
+        if ($user && password_verify($password, $user['password'])) {
+          session_regenerate_id(true);
+            $_SESSION['user_id']   = $user['id'];
+            $_SESSION['user_name'] = $user['name'];
+            $_SESSION['user_role'] = $user['role'];
+            $_SESSION['user_privileges'] = $user['privileges'] ?? '';
+            clearAttempts($conn, 'login', $loginKey);
+            logActivity($conn, 'User logged in: ' . $user['name'], 'system');
+            redirectTo('dashboard.php');
+        } else {
+            if ($username !== '') recordAttempt($conn, 'login', $loginKey);
+            $error = 'Invalid username or password. Please try again.';
+        }
     }
 }
 ?>

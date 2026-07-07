@@ -18,6 +18,29 @@ if (!defined('DB_USER')) define('DB_USER', envValue('DB_USER', 'root'));
 if (!defined('DB_PASS')) define('DB_PASS', envValue('DB_PASS', ''));
 if (!defined('DB_NAME')) define('DB_NAME', envValue('DB_NAME', 'zseries_pos'));
 
+// Production hardening: hide error details from the browser (log them instead),
+// and force HTTPS. Skipped in local dev, which usually has no SSL cert configured.
+if (APP_ENV === 'production') {
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+    ini_set('log_errors', '1');
+    error_reporting(E_ALL);
+    set_exception_handler(function ($e) {
+        error_log('Uncaught exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+        if (!headers_sent()) http_response_code(500);
+        echo '<!DOCTYPE html><html><head><title>Error</title></head><body style="font-family:sans-serif;text-align:center;padding:60px;color:#333">'
+           . '<h2>Something went wrong</h2><p>Please try again. If this keeps happening, contact support.</p></body></html>';
+    });
+
+    if (!isHttps()) {
+        header('Location: https://' . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+        exit();
+    }
+} else {
+    ini_set('display_errors', '1');
+    error_reporting(E_ALL);
+}
+
 function appBaseUrl() {
     static $base = null;
     if ($base !== null) return $base;
@@ -36,8 +59,14 @@ function appPath($path = '') {
     return appBaseUrl() . '/' . $path;
 }
 
+function isHttps() {
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ($_SERVER['SERVER_PORT'] ?? '') == 443
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+}
+
 function fullUrl($path = '') {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') == 443 ? 'https' : 'http';
+    $scheme = isHttps() ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     return $scheme . '://' . $host . appPath($path);
 }
@@ -69,9 +98,45 @@ if (empty($_SESSION['csrf_token'])) {
 
 // Auth check
 function requireLogin() {
+    global $conn;
     if (!isset($_SESSION['user_id'])) {
         redirectTo('index.php');
     }
+    // Re-check status/role/privileges against the DB on every request, rather than
+    // only at login — otherwise revoking a privilege or deactivating a user doesn't
+    // actually take effect until their session happens to end.
+    $stmt = $conn->prepare("SELECT name, role, privileges, status FROM users WHERE id = ?");
+    $stmt->bind_param('i', $_SESSION['user_id']);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    if (!$user || $user['status'] !== 'active') {
+        session_unset();
+        session_destroy();
+        redirectTo('index.php');
+    }
+    $_SESSION['user_name'] = $user['name'];
+    $_SESSION['user_role'] = $user['role'];
+    $_SESSION['user_privileges'] = $user['privileges'] ?? '';
+}
+
+/* RATE LIMITING (login lockout, forgot-password abuse prevention) */
+function tooManyAttempts($conn, $action, $identifier, $maxAttempts, $windowMinutes) {
+    $stmt = $conn->prepare("SELECT COUNT(*) as c FROM rate_limits WHERE action = ? AND identifier = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)");
+    $stmt->bind_param('ssi', $action, $identifier, $windowMinutes);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc()['c'] >= $maxAttempts;
+}
+
+function recordAttempt($conn, $action, $identifier) {
+    $stmt = $conn->prepare("INSERT INTO rate_limits (action, identifier) VALUES (?, ?)");
+    $stmt->bind_param('ss', $action, $identifier);
+    $stmt->execute();
+}
+
+function clearAttempts($conn, $action, $identifier) {
+    $stmt = $conn->prepare("DELETE FROM rate_limits WHERE action = ? AND identifier = ?");
+    $stmt->bind_param('ss', $action, $identifier);
+    $stmt->execute();
 }
 
 function csrfToken() {

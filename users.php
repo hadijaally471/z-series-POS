@@ -71,6 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $available_statuses, true)) $status = 'active';
         if ($name === '' || $username === '' || $password === '') {
             $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Name, username, and password are required.</div>';
+        } elseif (strlen($password) < 8) {
+            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Password must be at least 8 characters.</div>';
         } else {
             $check = $conn->prepare("SELECT id FROM users WHERE username = ?");
             $check->bind_param('s', $username);
@@ -109,6 +111,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $existing = $check->get_result()->fetch_assoc();
         if ($existing) {
             $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Username already exists.</div>';
+        } elseif ($password !== '' && strlen($password) < 8) {
+            $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Password must be at least 8 characters.</div>';
         } else {
             $privilege_string = privilegesToString(is_array($privileges) ? $privileges : []);
             if ($password !== '') {
@@ -238,7 +242,7 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
           <div class="form-group"><label class="form-label">Username *</label><input name="username" class="form-control" required/></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label class="form-label">Password *</label><input type="password" name="password" class="form-control" required/></div>
+          <div class="form-group"><label class="form-label">Password *</label><input type="password" name="password" class="form-control" minlength="8" required/></div>
           <div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-control" placeholder="+255 7XX XXX XXX"/></div>
         </div>
         <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-control" placeholder="For password reset emails" autocomplete="off"/></div>
@@ -289,7 +293,7 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
           <div class="form-group"><label class="form-label">Username *</label><input name="username" id="edit-user-username" class="form-control" required/></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label class="form-label">New Password</label><input type="password" name="password" id="edit-user-password" class="form-control" placeholder="Leave blank to keep current" autocomplete="new-password"/></div>
+          <div class="form-group"><label class="form-label">New Password</label><input type="password" name="password" id="edit-user-password" class="form-control" placeholder="Leave blank to keep current" minlength="8" autocomplete="new-password"/></div>
           <div class="form-group"><label class="form-label">Phone</label><input name="phone" id="edit-user-phone" class="form-control"/></div>
         </div>
         <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" id="edit-user-email" class="form-control" placeholder="For password reset emails" autocomplete="off"/></div>
