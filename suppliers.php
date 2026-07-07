@@ -48,7 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 logActivity($conn, "Supplier deleted: " . ($sup['name'] ?? 'Unknown'), 'system');
                 $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Supplier deleted!</div>';
             } catch (mysqli_sql_exception $e) {
-                $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Cannot delete this supplier — they have products or purchase orders linked to them.</div>';
+                $stmt = $conn->prepare("UPDATE suppliers SET status='inactive' WHERE id = ?");
+                $stmt->bind_param('i', $id);
+                $stmt->execute();
+                logActivity($conn, "Supplier archived (has products/purchase orders on record): " . ($sup['name'] ?? 'Unknown'), 'system');
+                $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">This supplier has products or purchase orders on record, so they were archived instead of deleted (hidden from this list, history preserved).</div>';
             }
         }
     }

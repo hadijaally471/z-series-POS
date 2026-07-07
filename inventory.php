@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $rejareja = $header ? ($row[$header_map['rejareja_price'] ?? 2] ?? 0) : ($row[2] ?? 0);
                 $jumla = $header ? ($row[$header_map['jumla_price'] ?? 3] ?? 0) : ($row[3] ?? 0);
                 $stock = $header ? ($row[$header_map['stock'] ?? 4] ?? 0) : ($row[4] ?? 0);
-                $unit = $header ? ($row[$header_map['unit'] ?? 5] ?? 'pcs') : ($row[5] ?? 'pcs');
+                $unit = $header ? ($row[$header_map['unit'] ?? 5] ?? 'pc') : ($row[5] ?? 'pc');
                 $threshold = $header ? ($row[$header_map['low_stock_threshold'] ?? 6] ?? 10) : ($row[6] ?? 10);
 
                 $name = sanitizeString($name, 200);
@@ -329,9 +329,8 @@ $ok_count   = $total_products - $low_count - $out_count;
           <div class="form-group"><label class="form-label">Unit</label>
             <select name="unit" id="p-unit" class="form-control">
               <option value="kg">Kilograms (kg)</option>
-              <option value="L">Litres (L)</option>
-              <option value="carton">Cartons</option>
-              <option value="pcs">Pieces (pcs)</option>
+              <option value="pc">Pieces (pc)</option>
+              <option value="ctns">Cartons (ctns)</option>
             </select>
           </div>
         </div>

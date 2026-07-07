@@ -12,6 +12,21 @@ $low_stock_count = 0;
 $ls = $conn->query("SELECT COUNT(*) as c FROM products WHERE stock <= low_stock_threshold AND status='active'");
 if ($ls) $low_stock_count = $ls->fetch_assoc()['c'];
 
+// Due/overdue task count for badge (current user's own tasks)
+$due_task_count = 0;
+$dt = $conn->prepare("SELECT COUNT(*) as c FROM tasks WHERE user_id = ? AND status = 'pending' AND due_date <= CURDATE()");
+$dt->bind_param('i', $_SESSION['user_id']);
+$dt->execute();
+$due_task_count = $dt->get_result()->fetch_assoc()['c'];
+
+// Pending payroll count for badge (current period)
+$pending_payroll_count = 0;
+$pp = $conn->prepare("SELECT COUNT(*) as c FROM payroll WHERE period = ? AND status = 'pending'");
+$current_period = date('Y-m');
+$pp->bind_param('s', $current_period);
+$pp->execute();
+$pending_payroll_count = $pp->get_result()->fetch_assoc()['c'];
+
 $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
 ?>
 <!DOCTYPE html>
@@ -65,6 +80,20 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
   <?php endif; ?>
   <?php if(hasPrivilege('purchase_orders')): ?>
   <a href="purchase_orders.php" class="nav-item <?= $current_page==='purchase_orders'?'active':'' ?>"><span class="nav-icon">📋</span> Purchase Orders</a>
+  <?php endif; ?>
+  <?php if(hasPrivilege('payroll')): ?>
+  <a href="payroll.php" class="nav-item <?= $current_page==='payroll'?'active':'' ?>">
+    <span class="nav-icon">🧮</span> Payroll
+    <?php if($pending_payroll_count>0): ?><span class="nav-badge"><?= $pending_payroll_count ?></span><?php endif; ?>
+  </a>
+  <?php endif; ?>
+
+  <div class="sidebar-section">Personal</div>
+  <?php if(hasPrivilege('tasks')): ?>
+  <a href="tasks.php" class="nav-item <?= $current_page==='tasks'?'active':'' ?>">
+    <span class="nav-icon">✅</span> Tasks
+    <?php if($due_task_count>0): ?><span class="nav-badge"><?= $due_task_count ?></span><?php endif; ?>
+  </a>
   <?php endif; ?>
 
   <div class="sidebar-section">Management</div>

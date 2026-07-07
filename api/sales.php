@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $cart         = is_array($data['cart'] ?? null) ? $data['cart'] : [];
     $priceType    = in_array(($data['priceType'] ?? 'rejareja'), ['rejareja', 'jumla'], true) ? $data['priceType'] : 'rejareja';
-    $payMethod    = in_array(($data['payMethod'] ?? 'cash'), ['cash', 'mpesa', 'debt'], true) ? $data['payMethod'] : 'cash';
+    $payMethod    = in_array(($data['payMethod'] ?? 'cash'), ['cash', 'lipa', 'bank', 'debt'], true) ? $data['payMethod'] : 'cash';
     $discount     = max(0, (float)($data['discount'] ?? 0));
     $customerId   = !empty($data['customerId']) ? (int)$data['customerId'] : null;
     $customerName = trim((string)($data['customerName'] ?? 'Walk-in')) ?: 'Walk-in';
@@ -127,13 +127,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Handle debt
         if ($payMethod === 'debt' && $customerId) {
-            $stmt3 = $conn->prepare("INSERT INTO debts (customer_id, customer_name, sale_id, amount, balance, description, debt_date, due_date, status) VALUES (?,?,?,?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL 30 DAY),'outstanding')");
+            $debtAmountPaid = max(0, min($total, (float)($data['debtAmountPaid'] ?? 0)));
+            $debtBalance    = $total - $debtAmountPaid;
+            $debtStatus     = $debtBalance <= 0 ? 'cleared' : ($debtAmountPaid > 0 ? 'partial' : 'outstanding');
+            $debtDueDate    = !empty($data['debtDueDate']) ? $data['debtDueDate'] : date('Y-m-d', strtotime('+30 days'));
+
+            $stmt3 = $conn->prepare("INSERT INTO debts (customer_id, customer_name, sale_id, amount, amount_paid, balance, description, debt_date, due_date, status) VALUES (?,?,?,?,?,?,?,CURDATE(),?,?)");
             $desc = "Sale: $receipt_number";
-            $stmt3->bind_param('isidds', $customerId, $customerName, $sale_id, $total, $total, $desc);
+            $stmt3->bind_param('isidddsss', $customerId, $customerName, $sale_id, $total, $debtAmountPaid, $debtBalance, $desc, $debtDueDate, $debtStatus);
             $stmt3->execute();
-            // Update customer debt
+            // Update customer debt (only the remaining balance is owed)
             $stmtCust = $conn->prepare("UPDATE customers SET outstanding_debt = outstanding_debt + ? WHERE id = ?");
-            $stmtCust->bind_param('di', $total, $customerId);
+            $stmtCust->bind_param('di', $debtBalance, $customerId);
             $stmtCust->execute();
         }
         

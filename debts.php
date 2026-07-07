@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $debt_id = sanitizeInt($_POST['debt_id'] ?? 0);
     $amount  = sanitizeFloat($_POST['amount'] ?? 0);
     $method  = sanitizeString($_POST['payment_method'] ?? 'cash', 20);
+    $new_due = sanitizeString($_POST['due_date'] ?? '', 20);
     if (!in_array($method, ['cash', 'mpesa'], true)) {
       $method = 'cash';
     }
@@ -32,9 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $new_paid = $debt['amount_paid'] + $amount;
             $new_bal  = $debt['amount'] - $new_paid;
             $status   = $new_bal <= 0 ? 'cleared' : ($new_paid > 0 ? 'partial' : 'outstanding');
-      $stmt_up = $conn->prepare("UPDATE debts SET amount_paid = ?, balance = ?, status = ? WHERE id = ?");
       $bal = max(0, $new_bal);
-      $stmt_up->bind_param('ddsi', $new_paid, $bal, $status, $debt_id);
+      if ($new_due !== '' && $status !== 'cleared') {
+        $stmt_up = $conn->prepare("UPDATE debts SET amount_paid = ?, balance = ?, status = ?, due_date = ? WHERE id = ?");
+        $stmt_up->bind_param('ddssi', $new_paid, $bal, $status, $new_due, $debt_id);
+      } else {
+        $stmt_up = $conn->prepare("UPDATE debts SET amount_paid = ?, balance = ?, status = ? WHERE id = ?");
+        $stmt_up->bind_param('ddsi', $new_paid, $bal, $status, $debt_id);
+      }
       $stmt_up->execute();
       $stmt = $conn->prepare("INSERT INTO debt_payments (debt_id,amount,payment_method) VALUES (?,?,?)");
       $stmt->bind_param('ids',$debt_id,$amount,$method); $stmt->execute();
@@ -91,9 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     }
 }
-$debts = $conn->query("SELECT * FROM debts WHERE status != 'cleared' ORDER BY debt_date ASC");
+$debts = $conn->query("SELECT * FROM debts ORDER BY FIELD(status,'outstanding','partial','cleared'), debt_date ASC");
 $stats = $conn->query("SELECT COALESCE(SUM(balance),0) as total, COUNT(*) as count, SUM(status='partial') as partial, SUM(DATEDIFF(CURDATE(),due_date)>0 AND status!='cleared') as overdue FROM debts WHERE status != 'cleared'")->fetch_assoc();
-$customers_list = $conn->query("SELECT id,name FROM customers ORDER BY name");
+$customers_list = $conn->query("SELECT id,name FROM customers WHERE status = 'active' ORDER BY name");
 ?>
 <div class="stats-grid">
   <div class="stat-card red"><div class="stat-label">Total Outstanding</div><div class="stat-value"><?=tzs($stats['total'])?></div><div class="stat-icon"></div></div>
@@ -103,20 +109,23 @@ $customers_list = $conn->query("SELECT id,name FROM customers ORDER BY name");
 </div>
 <?=$msg?>
 <div style="margin-bottom:14px"><button class="btn btn-primary" onclick="openModal('add-debt-modal')">+ Record Debt</button></div>
-<div class="card"><div class="card-header"><span class="card-title">Outstanding Debts</span></div>
+<div class="card"><div class="card-header"><span class="card-title">Debts</span></div>
 <div class="table-wrap"><table><thead><tr><th>#</th><th>Customer</th><th>Total Amount</th><th>Paid</th><th>Balance</th><th>Debt Date</th><th>Due Date</th><th>Status</th><th>Action</th></tr></thead>
 <tbody><?php $i=1; while($d=$debts->fetch_assoc()):
-$overdue = $d['due_date'] && strtotime($d['due_date']) < time() && $d['status']!=='cleared';
+$cleared = $d['status']==='cleared';
+$overdue = !$cleared && $d['due_date'] && strtotime($d['due_date']) < time();
+$status_labels = ['outstanding'=>'Outstanding','partial'=>'Partial','cleared'=>'Paid'];
+$status_class = $cleared ? 'success' : ($d['status']==='partial'?'warning':'danger');
 ?>
-<tr <?=$overdue?'style="background:rgba(239,68,68,0.04)"':''?>>
+<tr <?php if(!$cleared): ?>style="cursor:pointer<?=$overdue?';background:rgba(239,68,68,0.04)':''?>" onclick="payDebt(<?=$d['id']?>,<?=$d['balance']?>,'<?=htmlspecialchars($d['customer_name'], ENT_QUOTES)?>','<?=$d['due_date']?:''?>')"<?php else: ?>style="opacity:0.65"<?php endif; ?>>
 <td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($d['customer_name'])?><?=$overdue?' <span class="badge badge-danger" style="margin-left:4px">OVERDUE</span>':''?></td>
 <td><?=tzs($d['amount'])?></td><td class="text-success"><?=tzs($d['amount_paid'])?></td><td class="text-danger"><?=tzs($d['balance'])?></td>
 <td class="text-muted"><?=date('M d, Y',strtotime($d['debt_date']))?></td>
 <td class="<?=$overdue?'text-danger':''?>"><?=$d['due_date']?date('M d, Y',strtotime($d['due_date'])):'—'?></td>
-<td><span class="badge badge-<?=$d['status']==='partial'?'warning':'danger'?>"><?=ucfirst($d['status'])?></span></td>
-<td><button class="btn btn-success btn-sm" onclick="payDebt(<?=$d['id']?>,<?=$d['balance']?>,'<?=htmlspecialchars($d['customer_name'], ENT_QUOTES)?>')">Pay</button></td>
+<td><span class="badge badge-<?=$status_class?>"><?=$status_labels[$d['status']]?></span></td>
+<td><?php if(!$cleared): ?><button class="btn btn-success btn-sm" onclick="event.stopPropagation();payDebt(<?=$d['id']?>,<?=$d['balance']?>,'<?=htmlspecialchars($d['customer_name'], ENT_QUOTES)?>','<?=$d['due_date']?:''?>')">Pay</button><?php else: ?>—<?php endif; ?></td>
 </tr>
-<?php endwhile; if($debts->num_rows===0):?><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--success)">No outstanding debts!</td></tr><?php endif;?></tbody></table></div></div>
+<?php endwhile; if($debts->num_rows===0):?><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--success)">No debts recorded yet!</td></tr><?php endif;?></tbody></table></div></div>
 
 <!-- Add Debt Modal -->
 <div class="modal-overlay" id="add-debt-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Record Debt</span><button class="modal-close" onclick="closeModal('add-debt-modal')">&#x2715;</button></div>
@@ -134,16 +143,18 @@ $overdue = $d['due_date'] && strtotime($d['due_date']) < time() && $d['status']!
 <div class="modal-body">
 <div style="margin-bottom:14px;padding:14px;background:var(--bg3);border-radius:10px"><div style="font-size:13px;color:var(--text2)">Customer: <strong id="pay-cname" style="color:var(--text)"></strong></div><div style="font-size:13px;color:var(--text2);margin-top:4px">Balance: <strong id="pay-balance" style="color:var(--danger)"></strong></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Amount Paying (TZS) *</label><input type="number" name="amount" id="pay-amount" class="form-control" required/></div><div class="form-group"><label class="form-label">Payment Method</label><select name="payment_method" class="form-control"><option value="cash">Cash</option><option value="mpesa">M-Pesa</option></select></div></div>
+<div class="form-group"><label class="form-label">Due Date (for remaining balance)</label><input type="date" name="due_date" id="pay-due-date" class="form-control"/></div>
 </div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('pay-debt-modal')">Cancel</button><button type="submit" class="btn btn-success">Record Payment</button></div></form></div></div>
 
 <?php
 $extra_js = <<<'JS'
 <script>
-function payDebt(id, balance, name){
+function payDebt(id, balance, name, dueDate){
   document.getElementById('pay-debt-id').value = id;
   document.getElementById('pay-amount').value = balance;
   document.getElementById('pay-cname').textContent = name;
   document.getElementById('pay-balance').textContent = 'TZS '+balance.toLocaleString();
+  document.getElementById('pay-due-date').value = dueDate || '';
   openModal('pay-debt-modal');
 }
 function setDebtName(sel){

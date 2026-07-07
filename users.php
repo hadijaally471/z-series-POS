@@ -41,6 +41,8 @@ $available_privileges = [
     'expenses' => 'Expenses',
     'debts' => 'Debts',
     'purchase_orders' => 'Purchase Orders',
+    'payroll' => 'Payroll',
+    'tasks' => 'Tasks',
     'reports' => 'Reports',
     'receipts' => 'Receipts',
     'employees' => 'Employees',
@@ -283,7 +285,7 @@ $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active,
           <div class="form-group"><label class="form-label">Username *</label><input name="username" id="edit-user-username" class="form-control" required/></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label class="form-label">New Password</label><input type="password" name="password" class="form-control" placeholder="Leave blank to keep current"/></div>
+          <div class="form-group"><label class="form-label">New Password</label><input type="password" name="password" id="edit-user-password" class="form-control" placeholder="Leave blank to keep current" autocomplete="new-password"/></div>
           <div class="form-group"><label class="form-label">Phone</label><input name="phone" id="edit-user-phone" class="form-control"/></div>
         </div>
         <div class="form-row">
@@ -362,6 +364,7 @@ function openEditUser(button){
   document.getElementById('edit-user-id').value = button.dataset.id || '';
   document.getElementById('edit-user-name').value = button.dataset.name || '';
   document.getElementById('edit-user-username').value = button.dataset.username || '';
+  document.getElementById('edit-user-password').value = '';
   document.getElementById('edit-user-role').value = button.dataset.role || 'cashier';
   document.getElementById('edit-user-phone').value = button.dataset.phone || '';
   document.getElementById('edit-user-status').value = button.dataset.status || 'active';

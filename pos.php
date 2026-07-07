@@ -7,7 +7,8 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY name");
 $products_result = $conn->query("SELECT p.*, c.name as cat_name FROM products p LEFT JOIN categories c ON p.category_id=c.id WHERE p.status='active' ORDER BY c.name, p.name");
 $products = [];
 while ($r = $products_result->fetch_assoc()) $products[] = $r;
-$customers_result = $conn->query("SELECT c.*, cat.name as category_name FROM customers c LEFT JOIN categories cat ON c.category_id=cat.id ORDER BY c.name");
+$customers_result = $conn->query("SELECT * FROM customers WHERE status = 'active' ORDER BY name");
+$client_categories = ['wholesale' => 'Wholesale', 'retail' => 'Retail'];
 $sales_reps = $conn->query("SELECT id, name, role FROM employees WHERE status='active' AND role='Sales Rep' ORDER BY name");
 $business_address = getSetting($conn,'business_address');
 $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Moshi', 'Mwanza', 'Iringa', 'Morogoro', 'Tanga', 'Kigoma', 'Singida', 'Tabora'];
@@ -62,7 +63,7 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
       <select class="form-control" id="customer-select" style="font-size:12px">
         <option value="">Walk-in Customer</option>
         <?php $customers_result->data_seek(0); while($c = $customers_result->fetch_assoc()): ?>
-        <option value="<?= $c['id'] ?>" data-location="<?= htmlspecialchars($c['location'] ?? '') ?>"><?= htmlspecialchars($c['name']) ?><?= $c['category_name'] ? ' ('.htmlspecialchars($c['category_name']).')' : '' ?></option>
+        <option value="<?= $c['id'] ?>" data-location="<?= htmlspecialchars($c['location'] ?? '') ?>"><?= htmlspecialchars($c['name']) ?><?= $c['category'] ? ' ('.htmlspecialchars($client_categories[$c['category']]).')' : '' ?></option>
         <?php endwhile; ?>
       </select>
       <div style="margin-top:8px">
@@ -98,12 +99,14 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
     <div class="pos-footer">
       <div class="pos-totals">
         <div class="pos-total-row"><span>Subtotal</span><span id="cart-subtotal">TZS 0</span></div>
+        <div class="pos-total-row"><span>Discount (TZS)</span><input type="number" id="discount-input" class="discount-input" value="0" min="0" oninput="updateTotals()"/></div>
         <div class="pos-total-row grand"><span>TOTAL</span><span id="cart-total">TZS 0</span></div>
       </div>
       <div class="pay-methods">
         <button class="pay-method active" id="pay-cash" onclick="setPayMethod('cash')">Cash</button>
-        <button class="pay-method" id="pay-mpesa" onclick="setPayMethod('mpesa')">M-Pesa</button>
-        <button class="pay-method" id="pay-debt" onclick="setPayMethod('debt')">Debt</button>
+        <button class="pay-method" id="pay-lipa" onclick="setPayMethod('lipa')">Lipa</button>
+        <button class="pay-method" id="pay-bank" onclick="setPayMethod('bank')">Bank</button>
+        <button class="pay-method" id="pay-debt" onclick="openDebtModal()">Debt</button>
       </div>
       <button class="pay-btn" onclick="processSale()">Complete Sale & Print</button>
     </div>
@@ -125,10 +128,32 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
   </div>
 </div>
 
+<!-- Debt Details Modal -->
+<div class="modal-overlay" id="debt-modal" data-dismiss="true">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <span class="modal-title">Debt Sale Details</span>
+      <button class="modal-close" onclick="closeModal('debt-modal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:14px;padding:14px;background:var(--bg3);border-radius:10px">
+        <div style="font-size:13px;color:var(--text2)">Total Sale: <strong id="debt-total-display" style="color:var(--text)"></strong></div>
+      </div>
+      <div class="form-group"><label class="form-label">Amount Paid Now (TZS)</label><input type="number" id="debt-amount-paid" class="form-control" value="0" min="0" oninput="updateDebtBalance()"/></div>
+      <div class="form-group"><label class="form-label">Remaining Balance</label><input type="text" id="debt-balance-display" class="form-control" readonly/></div>
+      <div class="form-group"><label class="form-label">Due Date *</label><input type="date" id="debt-due-date" class="form-control"/></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('debt-modal')">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="confirmDebtModal()">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <?php
 $extra_js = <<<'JS'
 <script>
-let cart = [], priceType = 'rejareja', payMethod = 'cash';
+let cart = [], priceType = 'rejareja', payMethod = 'cash', debtAmountPaid = 0, debtDueDate = '';
 const businessAddress = %s;
 
 function fmt(n){return 'TZS '+(+n).toLocaleString();}
@@ -161,7 +186,41 @@ function setPriceType(type){
 
 function setPayMethod(m){
   payMethod = m;
-  ['cash','mpesa','debt'].forEach(x=>document.getElementById('pay-'+x).classList.toggle('active',x===m));
+  ['cash','lipa','bank','debt'].forEach(x=>document.getElementById('pay-'+x).classList.toggle('active',x===m));
+}
+
+function openDebtModal(){
+  if(!cart.length){showToast('Cart is empty!','error');return;}
+  if(!document.getElementById('customer-select').value){showToast('Select a customer for debt sales','error');return;}
+  const total = getTotal();
+  document.getElementById('debt-total-display').textContent = fmt(total);
+  document.getElementById('debt-amount-paid').value = 0;
+  document.getElementById('debt-amount-paid').max = total;
+  document.getElementById('debt-balance-display').value = fmt(total);
+  const d = new Date(); d.setDate(d.getDate()+30);
+  document.getElementById('debt-due-date').value = d.toISOString().slice(0,10);
+  openModal('debt-modal');
+}
+
+function updateDebtBalance(){
+  const total = getTotal();
+  let paid = +document.getElementById('debt-amount-paid').value || 0;
+  if(paid<0) paid = 0;
+  if(paid>total) paid = total;
+  document.getElementById('debt-balance-display').value = fmt(total-paid);
+}
+
+function confirmDebtModal(){
+  const total = getTotal();
+  let paid = +document.getElementById('debt-amount-paid').value || 0;
+  if(paid<0) paid = 0;
+  if(paid>total) paid = total;
+  const due = document.getElementById('debt-due-date').value;
+  if(!due){showToast('Due date is required','error');return;}
+  debtAmountPaid = paid;
+  debtDueDate = due;
+  setPayMethod('debt');
+  closeModal('debt-modal');
 }
 
 document.getElementById('customer-select')?.addEventListener('change', (e) => {
@@ -210,16 +269,34 @@ function renderCart(){
   updateTotals();
 }
 
+function getSubtotal(){
+  return cart.reduce((s,i)=>s+i[priceType]*i.qty,0);
+}
+
+function getDiscount(){
+  const sub = getSubtotal();
+  let d = +document.getElementById('discount-input').value || 0;
+  if(d<0) d = 0;
+  if(d>sub) d = sub;
+  return d;
+}
+
+function getTotal(){
+  return getSubtotal() - getDiscount();
+}
+
 function updateTotals(){
-  const sub = cart.reduce((s,i)=>s+i[priceType]*i.qty,0);
+  const sub = getSubtotal();
+  const total = getTotal();
   document.getElementById('cart-subtotal').textContent = fmt(sub);
-  document.getElementById('cart-total').textContent    = fmt(sub);
+  document.getElementById('cart-total').textContent    = fmt(total);
 }
 
 function processSale(){
   if(!cart.length){showToast('Cart is empty!','error');return;}
-  const sub = cart.reduce((s,i)=>s+i[priceType]*i.qty,0);
-  const total = sub;
+  const sub = getSubtotal();
+  const discount = getDiscount();
+  const total = getTotal();
   const customerId = document.getElementById('customer-select').value;
   const customerName = document.getElementById('customer-select').selectedOptions[0].text;
   const customerCity = document.getElementById('customer-city').value;
@@ -230,13 +307,15 @@ function processSale(){
   fetch('api/sales.php', {
     method:'POST',
     headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-    body: JSON.stringify({cart,priceType,payMethod,discount:0,total,sub,customerId,customerName:customerId?customerName:'Walk-in',customerCity,salesRepId})
+    body: JSON.stringify({cart,priceType,payMethod,discount,total,sub,customerId,customerName:customerId?customerName:'Walk-in',customerCity,salesRepId,debtAmountPaid:payMethod==='debt'?debtAmountPaid:0,debtDueDate:payMethod==='debt'?debtDueDate:''})
   })
   .then(r=>r.json())
   .then(data=>{
     if(data.success){
-      showReceipt(data.receipt_number, customerName, total, sub, salesRepName);
-      cart=[];renderCart();
+      showReceipt(data.receipt_number, customerName, total, sub, discount, salesRepName);
+      cart=[];
+      document.getElementById('discount-input').value = 0;
+      renderCart();
       localStorage.removeItem(POS_STORAGE_KEY);
       document.getElementById('customer-select').value='';
       document.getElementById('sales-rep-select').value='';
@@ -244,10 +323,11 @@ function processSale(){
   }).catch(()=>showToast('Connection error!','error'));
 }
 
-function showReceipt(rno, customer, total, sub, salesRepName){
+function showReceipt(rno, customer, total, sub, discount, salesRepName){
   const date = new Date().toLocaleString('en-TZ');
   const items = cart.map(i=>`<div class="receipt-row"><span>${i.name} x${i.qty}</span><span>${fmt(i[priceType]*i.qty)}</span></div>`).join('');
   const repLine = salesRepName ? `<div class="receipt-row"><span>Sales Rep:</span><span>${salesRepName}</span></div>` : '';
+  const discountLine = discount>0 ? `<div class="receipt-row"><span>Discount:</span><span>-${fmt(discount)}</span></div>` : '';
   document.getElementById('receipt-content').innerHTML = `
     <div class="receipt-box">
       <div class="receipt-header">
@@ -265,6 +345,7 @@ function showReceipt(rno, customer, total, sub, salesRepName){
       ${items}
       <hr class="receipt-divider"/>
       <div class="receipt-row"><span>Subtotal:</span><span>${fmt(sub)}</span></div>
+      ${discountLine}
       <div class="receipt-row receipt-total"><span>TOTAL:</span><span>${fmt(total)}</span></div>
       <div class="receipt-footer"><div>Thank you for your business!</div><div>Z-Series Products © 2026</div></div>
     </div>`;
@@ -282,6 +363,9 @@ function savePosState(){
       cart: cart,
       priceType: priceType,
       payMethod: payMethod,
+      discount: document.getElementById('discount-input') ? document.getElementById('discount-input').value : 0,
+      debtAmountPaid: debtAmountPaid,
+      debtDueDate: debtDueDate,
       customer: document.getElementById('customer-select') ? document.getElementById('customer-select').value : '',
       salesRep: document.getElementById('sales-rep-select') ? document.getElementById('sales-rep-select').value : ''
     };
@@ -297,13 +381,16 @@ function loadPosState(){
     if(Array.isArray(s.cart)) cart = s.cart;
     if(s.priceType) priceType = s.priceType;
     if(s.payMethod) payMethod = s.payMethod;
+    if(document.getElementById('discount-input') && typeof s.discount !== 'undefined') document.getElementById('discount-input').value = s.discount;
+    if(s.debtAmountPaid) debtAmountPaid = s.debtAmountPaid;
+    if(s.debtDueDate) debtDueDate = s.debtDueDate;
     if(document.getElementById('customer-select') && typeof s.customer !== 'undefined') document.getElementById('customer-select').value = s.customer;
     if(document.getElementById('sales-rep-select') && typeof s.salesRep !== 'undefined') document.getElementById('sales-rep-select').value = s.salesRep;
     if(priceType) {
       document.getElementById('btn-rejareja').classList.toggle('active', priceType==='rejareja');
       document.getElementById('btn-jumla').classList.toggle('active', priceType==='jumla');
     }
-    ['cash','mpesa','debt'].forEach(x=>{ if(document.getElementById('pay-'+x)) document.getElementById('pay-'+x).classList.toggle('active', payMethod===x); });
+    ['cash','lipa','bank','debt'].forEach(x=>{ if(document.getElementById('pay-'+x)) document.getElementById('pay-'+x).classList.toggle('active', payMethod===x); });
   }catch(e){console.error('loadPosState failed', e);}
 }
 
@@ -318,6 +405,8 @@ const orig_changeQty = changeQty;
 changeQty = function(id, delta){ orig_changeQty(id, delta); savePosState(); };
 const orig_addToCart = addToCart;
 addToCart = function(el){ orig_addToCart(el); savePosState(); };
+const orig_updateTotals = updateTotals;
+updateTotals = function(){ orig_updateTotals(); savePosState(); };
 
 // initialize state from localStorage on page load
 document.addEventListener('DOMContentLoaded', function(){ loadPosState(); renderCart(); });

@@ -88,12 +88,12 @@ CREATE TABLE customers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
   phone VARCHAR(20),
-  category_id INT,
+  category ENUM('wholesale','retail') DEFAULT NULL,
   location VARCHAR(200),
   total_purchases DECIMAL(15,2) DEFAULT 0,
   outstanding_debt DECIMAL(12,2) DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (category_id) REFERENCES categories(id)
+  status ENUM('active','inactive') DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- SALES
@@ -107,7 +107,7 @@ CREATE TABLE sales (
   subtotal DECIMAL(12,2) DEFAULT 0,
   discount DECIMAL(12,2) DEFAULT 0,
   total DECIMAL(12,2) DEFAULT 0,
-  payment_method ENUM('cash','mpesa','debt','card') DEFAULT 'cash',
+  payment_method ENUM('cash','lipa','bank','debt') DEFAULT 'cash',
   cashier_id INT,
   sales_rep_id INT,
   status ENUM('completed','cancelled','refunded') DEFAULT 'completed',
@@ -191,6 +191,41 @@ CREATE TABLE purchase_orders (
   FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
 );
 
+-- TASKS
+CREATE TABLE tasks (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  due_date DATE NOT NULL,
+  due_time TIME DEFAULT NULL,
+  priority ENUM('low','medium','high') DEFAULT 'medium',
+  status ENUM('pending','completed') DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- PAYROLL
+CREATE TABLE payroll (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  employee_id INT NOT NULL,
+  period VARCHAR(7) NOT NULL,
+  base_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+  bonus DECIMAL(12,2) NOT NULL DEFAULT 0,
+  deductions DECIMAL(12,2) NOT NULL DEFAULT 0,
+  net_pay DECIMAL(12,2) NOT NULL DEFAULT 0,
+  status ENUM('pending','paid') DEFAULT 'pending',
+  paid_date DATE DEFAULT NULL,
+  notes VARCHAR(500),
+  expense_id INT DEFAULT NULL,
+  created_by INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_employee_period (employee_id, period),
+  FOREIGN KEY (employee_id) REFERENCES employees(id),
+  FOREIGN KEY (expense_id) REFERENCES expenses(id),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
 -- ACTIVITY LOG
 CREATE TABLE activity_log (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -198,7 +233,7 @@ CREATE TABLE activity_log (
   user_name VARCHAR(100),
   action VARCHAR(255),
   details TEXT,
-  type ENUM('sale','product','customer','expense','debt','po','system') DEFAULT 'system',
+  type ENUM('sale','product','customer','expense','debt','po','task','payroll','system') DEFAULT 'system',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

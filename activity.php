@@ -5,7 +5,7 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('activity');
 $type_f = $_GET['type']??'';
-$allowed_types = ['sale','product','customer','expense','debt','po','system'];
+$allowed_types = ['sale','product','customer','expense','debt','po','task','payroll','system'];
 if (!in_array($type_f, $allowed_types, true)) {
   $type_f = '';
 }
@@ -17,8 +17,8 @@ if ($type_f) {
 } else {
   $logs = $conn->query("SELECT * FROM activity_log ORDER BY created_at DESC LIMIT 100");
 }
-$type_icons = ['sale'=>'','product'=>'','customer'=>'','expense'=>'','debt'=>'','po'=>'','system'=>''];
-$type_colors = ['sale'=>'var(--success)','product'=>'var(--purple)','customer'=>'var(--info)','expense'=>'var(--danger)','debt'=>'var(--warning)','po'=>'var(--purple2)','system'=>'var(--text3)'];
+$type_icons = ['sale'=>'','product'=>'','customer'=>'','expense'=>'','debt'=>'','po'=>'','task'=>'','payroll'=>'','system'=>''];
+$type_colors = ['sale'=>'var(--success)','product'=>'var(--purple)','customer'=>'var(--info)','expense'=>'var(--danger)','debt'=>'var(--warning)','po'=>'var(--purple2)','task'=>'var(--info)','payroll'=>'var(--purple)','system'=>'var(--text3)'];
 ?>
 <form method="GET" style="display:contents"><div class="filter-bar">
   <select class="filter-select" name="type" onchange="this.form.submit()">
@@ -29,6 +29,8 @@ $type_colors = ['sale'=>'var(--success)','product'=>'var(--purple)','customer'=>
     <option value="expense" <?=$type_f==='expense'?'selected':''?>>Expenses</option>
     <option value="debt" <?=$type_f==='debt'?'selected':''?>>Debts</option>
     <option value="po" <?=$type_f==='po'?'selected':''?>>Purchase Orders</option>
+    <option value="task" <?=$type_f==='task'?'selected':''?>>Tasks</option>
+    <option value="payroll" <?=$type_f==='payroll'?'selected':''?>>Payroll</option>
     <option value="system" <?=$type_f==='system'?'selected':''?>>System</option>
   </select>
   <a href="activity.php" class="btn btn-outline">Clear Filter</a>

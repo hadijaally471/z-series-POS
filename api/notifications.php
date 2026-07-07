@@ -70,6 +70,51 @@ if ($recent_expenses) {
     }
 }
 
+// 5. Own tasks that are due soon (today, overdue, or within the next 2 days)
+$user_id = (int)($_SESSION['user_id'] ?? 0);
+if ($user_id) {
+    $stmt = $conn->prepare("SELECT id, title, due_date FROM tasks WHERE user_id = ? AND status = 'pending' AND due_date <= DATE_ADD(CURDATE(), INTERVAL 2 DAY) ORDER BY due_date ASC LIMIT 10");
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $due_tasks = $stmt->get_result();
+    while ($t = $due_tasks->fetch_assoc()) {
+        $is_overdue = $t['due_date'] < date('Y-m-d');
+        $is_today   = $t['due_date'] === date('Y-m-d');
+        $when = $is_overdue ? 'Overdue' : ($is_today ? 'Due today' : 'Due ' . date('M d', strtotime($t['due_date'])));
+        $notifications[] = [
+            'id' => 'task_due_' . $t['id'],
+            'type' => 'task_due',
+            'title' => ($is_overdue ? ' Overdue Task' : ' Task Reminder'),
+            'body' => $t['title'] . ' — ' . $when,
+            'link' => 'tasks.php',
+            'priority' => $is_overdue || $is_today ? 'high' : 'medium'
+        ];
+    }
+}
+
+// 6. Pending payroll nearing/at month end
+if (hasPrivilege('payroll')) {
+    $current_period = date('Y-m');
+    $day_of_month = (int)date('j');
+    $days_in_month = (int)date('t');
+    if ($day_of_month >= $days_in_month - 5) {
+        $stmt = $conn->prepare("SELECT COUNT(*) as c, COALESCE(SUM(net_pay),0) as total FROM payroll WHERE period = ? AND status = 'pending'");
+        $stmt->bind_param('s', $current_period);
+        $stmt->execute();
+        $pr = $stmt->get_result()->fetch_assoc();
+        if ($pr['c'] > 0) {
+            $notifications[] = [
+                'id' => 'pending_payroll_' . $current_period,
+                'type' => 'pending_payroll',
+                'title' => ' Payroll Reminder',
+                'body' => $pr['c'] . ' employee(s) not yet paid: TZS ' . number_format($pr['total']),
+                'link' => 'payroll.php',
+                'priority' => 'medium'
+            ];
+        }
+    }
+}
+
 // Return as JSON
 echo json_encode([
     'success' => true,

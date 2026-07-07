@@ -12,7 +12,7 @@ $today_revenue = $conn->query("SELECT COALESCE(SUM(total),0) as v FROM sales WHE
 $today_sales   = $conn->query("SELECT COUNT(*) as v FROM sales WHERE DATE(created_at)='$today' AND status='completed'")->fetch_assoc()['v'];
 $low_stock     = $conn->query("SELECT COUNT(*) as v FROM products WHERE stock <= low_stock_threshold AND status='active'")->fetch_assoc()['v'];
 $total_debt    = $conn->query("SELECT COALESCE(SUM(balance),0) as v FROM debts WHERE status != 'cleared'")->fetch_assoc()['v'];
-$total_customers = $conn->query("SELECT COUNT(*) as v FROM customers")->fetch_assoc()['v'];
+$total_customers = $conn->query("SELECT COUNT(*) as v FROM customers WHERE status = 'active'")->fetch_assoc()['v'];
 $total_products  = $conn->query("SELECT COUNT(*) as v FROM products WHERE status='active'")->fetch_assoc()['v'];
 
 // Recent sales

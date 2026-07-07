@@ -265,6 +265,7 @@ textarea.form-control{resize:vertical;min-height:80px}
 .pos-totals{margin-bottom:12px}
 .pos-total-row{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:5px}
 .pos-total-row.grand{font-size:15px;color:var(--text);font-weight:700;border-top:1px solid var(--border2);padding-top:8px;margin-top:8px}
+.discount-input{width:90px;padding:3px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;text-align:right;outline:none}
 .pay-methods{display:flex;gap:6px;margin-bottom:10px}
 .pay-method{flex:1;padding:6px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;text-align:center;font-weight:600}
 .pay-method.active{background:var(--success);border-color:var(--success);color:white}
@@ -373,3 +374,27 @@ textarea.form-control{resize:vertical;min-height:80px}
   .login-btn{padding:13px;font-size:14px}
 }
 .alert-danger{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;padding:12px 16px;border-radius:10px;font-size:14px;margin-bottom:20px;font-weight:500}
+
+/* TASKS CALENDAR */
+.cal-header{padding:15px 22px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.cal-title{font-size:16px;font-weight:700;font-family:'Syne',sans-serif;color:var(--text)}
+.cal-nav{display:flex;gap:8px;align-items:center}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:16px}
+.cal-dow{text-align:center;font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:4px 0}
+.cal-day{min-height:74px;border:1px solid var(--border2);border-radius:10px;padding:6px;background:var(--bg3);cursor:pointer;transition:border-color 0.15s;overflow:hidden}
+.cal-day:hover{border-color:var(--purple)}
+.cal-day.other-month{visibility:hidden;cursor:default}
+.cal-day.today{border-color:var(--purple);box-shadow:0 0 0 1px var(--purple)}
+.cal-day.selected{background:var(--purple-light)}
+.cal-day-num{font-size:12px;font-weight:600;color:var(--text2)}
+.cal-day.today .cal-day-num{color:var(--purple2)}
+.cal-day-tasks{margin-top:4px;display:flex;flex-direction:column;gap:2px}
+.cal-day-task{font-size:10px;padding:2px 5px;border-radius:4px;background:var(--purple-light);color:var(--purple2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-day-task.done{background:rgba(16,185,129,0.15);color:var(--success);text-decoration:line-through}
+.cal-day-task.overdue{background:rgba(239,68,68,0.15);color:var(--danger)}
+.cal-day-more{font-size:10px;color:var(--text3);padding:0 2px}
+@media (max-width:700px){
+  .cal-grid{gap:3px;padding:10px}
+  .cal-day{min-height:52px;padding:4px}
+  .cal-day-task{display:none}
+}

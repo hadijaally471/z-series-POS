@@ -11,10 +11,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'add') {
         $name = sanitizeString($_POST['name'] ?? '', 200);
         $phone = sanitizeString($_POST['phone'] ?? '', 40);
-        $cat_id = sanitizeInt($_POST['category_id'] ?? 0) ?: null;
+        $category = in_array($_POST['category'] ?? '', ['wholesale', 'retail'], true) ? $_POST['category'] : null;
         $location = sanitizeString($_POST['location'] ?? '', 200);
-        $stmt = $conn->prepare("INSERT INTO customers (name,phone,category_id,location) VALUES (?,?,?,?)");
-        $stmt->bind_param('ssis',$name,$phone,$cat_id,$location); $stmt->execute();
+        $stmt = $conn->prepare("INSERT INTO customers (name,phone,category,location) VALUES (?,?,?,?)");
+        $stmt->bind_param('ssss',$name,$phone,$category,$location); $stmt->execute();
         logActivity($conn,"Customer added: $name",'customer');
         $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Customer added!</div>';
     }
@@ -22,11 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cid = sanitizeInt($_POST['customer_id'] ?? 0);
         $name = sanitizeString($_POST['name'] ?? '', 200);
         $phone = sanitizeString($_POST['phone'] ?? '', 40);
-        $cat_id = sanitizeInt($_POST['category_id'] ?? 0) ?: null;
+        $category = in_array($_POST['category'] ?? '', ['wholesale', 'retail'], true) ? $_POST['category'] : null;
         $location = sanitizeString($_POST['location'] ?? '', 200);
         if ($cid > 0 && $name !== '') {
-            $stmt = $conn->prepare("UPDATE customers SET name=?, phone=?, category_id=?, location=? WHERE id=?");
-            $stmt->bind_param('ssisi', $name, $phone, $cat_id, $location, $cid);
+            $stmt = $conn->prepare("UPDATE customers SET name=?, phone=?, category=?, location=? WHERE id=?");
+            $stmt->bind_param('ssssi', $name, $phone, $category, $location, $cid);
             $stmt->execute();
             logActivity($conn, "Customer updated: $name", 'customer');
             $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Customer updated!</div>';
@@ -46,16 +46,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 logActivity($conn,"Customer deleted: " . ($c['name'] ?? 'Unknown'),'customer');
                 $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Customer deleted!</div>';
             } catch (mysqli_sql_exception $e) {
-                $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Cannot delete this customer — they have sales or debts linked to them. Remove those records first.</div>';
+                $stmt = $conn->prepare("UPDATE customers SET status='inactive' WHERE id = ?");
+                $stmt->bind_param('i', $cid);
+                $stmt->execute();
+                logActivity($conn,"Customer archived (has sales/debts on record): " . ($c['name'] ?? 'Unknown'),'customer');
+                $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">This customer has sales or debts on record, so they were archived instead of deleted (hidden from this list, history preserved).</div>';
             }
         }
     }
 }
 $search = sanitizeString($_GET['search'] ?? '', 100);
-$cat_f = sanitizeInt($_GET['category'] ?? 0);
+$cat_f = in_array($_GET['category'] ?? '', ['wholesale', 'retail'], true) ? $_GET['category'] : '';
 $city_f = sanitizeString($_GET['city'] ?? '', 100);
 $phone_f = sanitizeString($_GET['phone'] ?? '', 40);
-$where = ["1=1"];
+$where = ["status = 'active'"];
 $params = [];
 $types = '';
 if($search) {
@@ -65,9 +69,9 @@ if($search) {
   $types .= 'ss';
 }
 if($cat_f) {
-  $where[] = "category_id = ?";
+  $where[] = "category = ?";
   $params[] = $cat_f;
-  $types .= 'i';
+  $types .= 's';
 }
 if($city_f) {
   $where[] = "location = ?";
@@ -79,13 +83,19 @@ if($phone_f) {
   $params[] = '%' . $phone_f . '%';
   $types .= 's';
 }
-$stmt = $conn->prepare("SELECT c.*, cat.name as category_name FROM customers c LEFT JOIN categories cat ON c.category_id=cat.id WHERE " . implode(' AND ', $where) . " ORDER BY c.name");
+$stmt = $conn->prepare("SELECT c.* FROM customers c WHERE " . implode(' AND ', $where) . " ORDER BY c.name");
 if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $customers = $stmt->get_result();
-$stats = $conn->query("SELECT COUNT(*) as total, SUM(outstanding_debt>0) as with_debt, SUM(outstanding_debt) as total_debt FROM customers")->fetch_assoc();
-$categories = $conn->query("SELECT * FROM categories ORDER BY name");
-$cat_counts = $conn->query("SELECT cat.id, cat.name, COUNT(c.id) as cnt FROM categories cat LEFT JOIN customers c ON c.category_id=cat.id GROUP BY cat.id, cat.name ORDER BY cat.name")->fetch_all(MYSQLI_ASSOC);
+$stats = $conn->query("SELECT COUNT(*) as total, SUM(outstanding_debt>0) as with_debt, SUM(outstanding_debt) as total_debt FROM customers WHERE status = 'active'")->fetch_assoc();
+$client_categories = ['wholesale' => 'Wholesale', 'retail' => 'Retail'];
+$cat_counts_raw = $conn->query("SELECT category, COUNT(*) as cnt FROM customers WHERE status = 'active' AND category IS NOT NULL GROUP BY category")->fetch_all(MYSQLI_ASSOC);
+$cat_counts_map = [];
+foreach ($cat_counts_raw as $row) $cat_counts_map[$row['category']] = $row['cnt'];
+$cat_counts = [];
+foreach ($client_categories as $key => $label) {
+  $cat_counts[] = ['id' => $key, 'name' => $label, 'cnt' => $cat_counts_map[$key] ?? 0];
+}
 
 // Get unique cities for filter dropdown
 $cities = $conn->query("SELECT DISTINCT location FROM customers WHERE location IS NOT NULL AND location!='' ORDER BY location")->fetch_all(MYSQLI_ASSOC);
@@ -105,9 +115,9 @@ $stat_colors = ['blue','green','amber','purple'];
   <input class="filter-search" name="search" placeholder="Search by name or phone..." value="<?=htmlspecialchars($search)?>"/>
   <select class="filter-select" name="category" onchange="this.form.submit()">
     <option value="">All Categories</option>
-    <?php $categories->data_seek(0); while($cat=$categories->fetch_assoc()): ?>
-    <option value="<?=$cat['id']?>" <?=$cat_f==$cat['id']?'selected':''?>><?=htmlspecialchars($cat['name'])?></option>
-    <?php endwhile; ?>
+    <?php foreach($client_categories as $key => $label): ?>
+    <option value="<?=$key?>" <?=$cat_f===$key?'selected':''?>><?=htmlspecialchars($label)?></option>
+    <?php endforeach; ?>
   </select>
   <select class="filter-select" name="city" onchange="this.form.submit()">
     <option value="">All Cities</option>
@@ -123,22 +133,22 @@ $stat_colors = ['blue','green','amber','purple'];
 <div class="table-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Category</th><th>Location</th><th>Total Purchases</th><th>Action</th></tr></thead>
 <tbody><?php $i=1; while($c=$customers->fetch_assoc()):?>
 <tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($c['name'])?></td><td><?=htmlspecialchars($c['phone'])?></td>
-<td><?php if($c['category_name']): ?><span class="badge badge-<?=$c['category_name']==='Soap'?'info':'purple'?>"><?=htmlspecialchars($c['category_name'])?></span><?php else: ?>—<?php endif; ?></td>
+<td><?php if($c['category']): ?><span class="badge badge-<?=$c['category']==='retail'?'info':'purple'?>"><?=htmlspecialchars($client_categories[$c['category']])?></span><?php else: ?>—<?php endif; ?></td>
 <td><?=htmlspecialchars($c['location']??'—')?></td><td class="text-success"><?=tzs($c['total_purchases'])?></td>
 <td style="display:flex;gap:6px;align-items:center">
-  <button type="button" class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='openEditCustomer(this)' data-id="<?=$c['id']?>" data-name="<?=htmlspecialchars($c['name'], ENT_QUOTES)?>" data-phone="<?=htmlspecialchars($c['phone'], ENT_QUOTES)?>" data-category="<?=htmlspecialchars($c['category_id'] ?? '', ENT_QUOTES)?>" data-location="<?=htmlspecialchars($c['location'] ?? '', ENT_QUOTES)?>">✏️</button>
+  <button type="button" class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='openEditCustomer(this)' data-id="<?=$c['id']?>" data-name="<?=htmlspecialchars($c['name'], ENT_QUOTES)?>" data-phone="<?=htmlspecialchars($c['phone'], ENT_QUOTES)?>" data-category="<?=htmlspecialchars($c['category'] ?? '', ENT_QUOTES)?>" data-location="<?=htmlspecialchars($c['location'] ?? '', ENT_QUOTES)?>">✏️</button>
   <form method="POST" style="margin:0" data-confirm="Delete <?=htmlspecialchars($c['name'], ENT_QUOTES)?>? This cannot be undone."><input type="hidden" name="action" value="delete"><input type="hidden" name="customer_id" value="<?=$c['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-sm btn-danger" title="Delete" aria-label="Delete" style="padding:4px 8px;font-size:11px">🗑️</button></form>
 </td></tr>
 <?php endwhile; if($customers->num_rows===0): ?><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">No customers found</td></tr><?php endif;?></tbody></table></div></div>
 <div class="modal-overlay" id="add-customer-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Add Customer</span><button class="modal-close" onclick="closeModal('add-customer-modal')"></button></div>
 <form method="POST"><input type="hidden" name="action" value="add"><?= csrfInput() ?><div class="modal-body">
 <div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input name="name" class="form-control" required/></div><div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-control" placeholder="+255 7XX XXX XXX"/></div></div>
-<div class="form-row"><div class="form-group"><label class="form-label">Client Category</label><select name="category_id" class="form-control"><option value="">Select category</option><?php $categories->data_seek(0); while($cat=$categories->fetch_assoc()): ?><option value="<?=$cat['id']?>"><?=htmlspecialchars($cat['name'])?></option><?php endwhile; ?></select></div><div class="form-group"><label class="form-label">City</label><select name="location" class="form-control" required><option value="">Select a city...</option><?php foreach($cities_list as $c): ?><option value="<?=htmlspecialchars($c)?>"><?=htmlspecialchars($c)?></option><?php endforeach; ?></select></div></div>
+<div class="form-row"><div class="form-group"><label class="form-label">Client Category</label><select name="category" class="form-control"><option value="">Select category</option><?php foreach($client_categories as $key => $label): ?><option value="<?=$key?>"><?=htmlspecialchars($label)?></option><?php endforeach; ?></select></div><div class="form-group"><label class="form-label">City</label><select name="location" class="form-control" required><option value="">Select a city...</option><?php foreach($cities_list as $c): ?><option value="<?=htmlspecialchars($c)?>"><?=htmlspecialchars($c)?></option><?php endforeach; ?></select></div></div>
 </div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('add-customer-modal')">Cancel</button><button type="submit" class="btn btn-primary">Add Customer</button></div></form></div></div>
 <div class="modal-overlay" id="edit-customer-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Edit Customer</span><button class="modal-close" onclick="closeModal('edit-customer-modal')"></button></div>
 <form method="POST"><input type="hidden" name="action" value="edit"><input type="hidden" name="customer_id" id="edit-cust-id"><?= csrfInput() ?><div class="modal-body">
 <div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input name="name" id="edit-cust-name" class="form-control" required/></div><div class="form-group"><label class="form-label">Phone</label><input name="phone" id="edit-cust-phone" class="form-control"/></div></div>
-<div class="form-row"><div class="form-group"><label class="form-label">Client Category</label><select name="category_id" id="edit-cust-category" class="form-control"><option value="">Select category</option><?php $categories->data_seek(0); while($cat=$categories->fetch_assoc()): ?><option value="<?=$cat['id']?>"><?=htmlspecialchars($cat['name'])?></option><?php endwhile; ?></select></div><div class="form-group"><label class="form-label">City</label><select name="location" id="edit-cust-location" class="form-control" required><option value="">Select a city...</option><?php foreach($cities_list as $c): ?><option value="<?=htmlspecialchars($c)?>"><?=htmlspecialchars($c)?></option><?php endforeach; ?></select></div></div>
+<div class="form-row"><div class="form-group"><label class="form-label">Client Category</label><select name="category" id="edit-cust-category" class="form-control"><option value="">Select category</option><?php foreach($client_categories as $key => $label): ?><option value="<?=$key?>"><?=htmlspecialchars($label)?></option><?php endforeach; ?></select></div><div class="form-group"><label class="form-label">City</label><select name="location" id="edit-cust-location" class="form-control" required><option value="">Select a city...</option><?php foreach($cities_list as $c): ?><option value="<?=htmlspecialchars($c)?>"><?=htmlspecialchars($c)?></option><?php endforeach; ?></select></div></div>
 </div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('edit-customer-modal')">Cancel</button><button type="submit" class="btn btn-primary">Save Changes</button></div></form></div></div>
 <?php require_once 'includes/footer.php'; ?>
 <script>

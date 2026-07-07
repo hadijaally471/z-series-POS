@@ -89,10 +89,10 @@ if ($rep_filter > 0) {
 }
 
 $pay_colors = [
-    'cash'  => '#10B981',
-    'mpesa' => '#3B82F6',
-    'debt'  => '#F59E0B',
-    'card'  => '#8B5CF6',
+    'cash' => '#10B981',
+    'lipa' => '#3B82F6',
+    'bank' => '#8B5CF6',
+    'debt' => '#F59E0B',
 ];
 ?>
 
