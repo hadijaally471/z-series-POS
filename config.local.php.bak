@@ -1,9 +1,0 @@
-<?php
-// Copy this file to config.local.php for your environment and fill in the correct MySQL details.
-// Keep config.local.php out of version control and never use the local XAMPP root account on hosting.
-
-define('APP_ENV', 'production');
-define('DB_HOST', 'localhost');
-define('DB_USER', 'u123456789_zseries_user');
-define('DB_PASS', '?BLY4VBkW0k');
-define('DB_NAME', 'u123456789_zseries_pos');

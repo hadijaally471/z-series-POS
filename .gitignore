@@ -1,3 +1,5 @@
 config.local.php
+config.local.php.bak
+*.bak
 .DS_Store
 uploads/
