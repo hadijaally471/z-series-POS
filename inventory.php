@@ -236,7 +236,7 @@ $ok_count   = $total_products - $low_count - $out_count;
           <td class="text-purple"><?= tzs($p['rejareja_price']) ?></td>
           <td class="text-purple"><?= tzs($p['jumla_price']) ?></td>
           <td class="<?= $p['stock']==0?'text-danger':($p['stock']<=$p['low_stock_threshold']?'text-warning':'text-success') ?>"><?= $p['stock'] ?></td>
-          <td><?= htmlspecialchars($p['unit']) ?></td>
+          <td><?= htmlspecialchars(unitLabel($p['unit'])) ?></td>
           <td>
             <?php if($p['stock']==0): ?><span class="badge badge-danger">Out of Stock</span>
             <?php elseif($p['stock']<=$p['low_stock_threshold']): ?><span class="badge badge-warning">Low Stock</span>
@@ -329,6 +329,8 @@ $ok_count   = $total_products - $low_count - $out_count;
           <div class="form-group"><label class="form-label">Unit</label>
             <select name="unit" id="p-unit" class="form-control">
               <option value="kg">Kilograms (kg)</option>
+              <option value="half_kg">Half Kg</option>
+              <option value="quarter_kg">Quarter Kg</option>
               <option value="pc">Pieces (pc)</option>
               <option value="ctns">Cartons (ctns)</option>
             </select>

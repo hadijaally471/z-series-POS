@@ -44,7 +44,7 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
           <div class="pos-product-price">Jumla: <span><?= tzs($p['jumla_price']) ?></span></div>
         </div>
         <div class="pos-product-stock <?= $p['stock']==0?'out':($p['stock']<=$p['low_stock_threshold']?'low':'') ?>">
-          <?= $p['stock']==0 ? 'Out of stock' : 'Stock: '.$p['stock'].' '.$p['unit'] ?>
+          <?= $p['stock']==0 ? 'Out of stock' : 'Stock: '.$p['stock'].' '.unitLabel($p['unit']) ?>
         </div>
       </div>
       <?php endforeach; ?>

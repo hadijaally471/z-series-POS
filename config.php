@@ -152,6 +152,12 @@ function tzs($amount) {
     return 'TZS ' . number_format($amount, 0, '.', ',');
 }
 
+// Human-readable product unit label
+function unitLabel($unit) {
+    $labels = ['kg' => 'kg', 'half_kg' => 'Half Kg', 'quarter_kg' => 'Quarter Kg', 'pc' => 'pc', 'ctns' => 'ctns'];
+    return $labels[$unit] ?? $unit;
+}
+
 // Get setting
 function getSetting($conn, $key) {
     $stmt = $conn->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
