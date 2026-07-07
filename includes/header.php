@@ -37,7 +37,7 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
 <meta name="csrf-token" content="<?= htmlspecialchars(csrfToken(), ENT_QUOTES) ?>"/>
 <meta name="app-base-url" content="<?= htmlspecialchars(appBaseUrl(), ENT_QUOTES) ?>"/>
 <title><?= $page_title ?? 'Z-Series POS' ?> — <?= htmlspecialchars($business_name) ?></title>
-<link rel="stylesheet" href="<?= htmlspecialchars(appPath('css/style.css'), ENT_QUOTES) ?>"/>
+<link rel="stylesheet" href="<?= htmlspecialchars(appPath('css/style.css'), ENT_QUOTES) ?>?v=<?= @filemtime(__DIR__ . '/../css/style.css') ?: time() ?>"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
