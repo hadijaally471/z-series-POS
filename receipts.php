@@ -4,6 +4,75 @@ $page_title = 'Receipts';
 $content_class = 'content premium-content receipt-page';
 require_once 'includes/header.php';
 requirePrivilege('receipts');
+$msg = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrfToken();
+    $action = $_POST['action'] ?? '';
+    if ($action === 'delete') {
+        $sid = sanitizeInt($_POST['id'] ?? 0);
+        if ($sid > 0) {
+            $conn->begin_transaction();
+            try {
+                $stmt = $conn->prepare("SELECT * FROM sales WHERE id=? FOR UPDATE");
+                $stmt->bind_param('i', $sid);
+                $stmt->execute();
+                $sale = $stmt->get_result()->fetch_assoc();
+                if (!$sale || $sale['status'] !== 'completed') {
+                    throw new Exception('Receipt not found or already cancelled.');
+                }
+
+                if ($sale['payment_method'] === 'debt') {
+                    $stmt = $conn->prepare("SELECT * FROM debts WHERE sale_id=? FOR UPDATE");
+                    $stmt->bind_param('i', $sid);
+                    $stmt->execute();
+                    $debt = $stmt->get_result()->fetch_assoc();
+                    if ($debt && (float)$debt['amount_paid'] > 0) {
+                        throw new Exception('This receipt has debt payments recorded against it — settle or reverse those in Debts before deleting this receipt.');
+                    }
+                    if ($debt) {
+                        if ($debt['customer_id']) {
+                            $stmt = $conn->prepare("UPDATE customers SET outstanding_debt = outstanding_debt - ? WHERE id=?");
+                            $stmt->bind_param('di', $debt['balance'], $debt['customer_id']);
+                            $stmt->execute();
+                        }
+                        $stmt = $conn->prepare("DELETE FROM debts WHERE id=?");
+                        $stmt->bind_param('i', $debt['id']);
+                        $stmt->execute();
+                    }
+                }
+
+                $items = $conn->prepare("SELECT product_id, qty FROM sale_items WHERE sale_id=?");
+                $items->bind_param('i', $sid);
+                $items->execute();
+                $itemsResult = $items->get_result();
+                $restoreStmt = $conn->prepare("UPDATE products SET stock = stock + ? WHERE id=?");
+                while ($item = $itemsResult->fetch_assoc()) {
+                    $restoreStmt->bind_param('ii', $item['qty'], $item['product_id']);
+                    $restoreStmt->execute();
+                }
+
+                if ($sale['customer_id']) {
+                    $stmt = $conn->prepare("UPDATE customers SET total_purchases = total_purchases - ? WHERE id=?");
+                    $stmt->bind_param('di', $sale['total'], $sale['customer_id']);
+                    $stmt->execute();
+                }
+
+                $stmt = $conn->prepare("UPDATE sales SET status='cancelled' WHERE id=?");
+                $stmt->bind_param('i', $sid);
+                $stmt->execute();
+
+                $conn->commit();
+                logActivity($conn, "Receipt deleted: " . $sale['receipt_number'] . " (" . number_format($sale['total']) . " TZS, stock restored)", 'sale');
+                $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Receipt deleted — stock has been restored to inventory.</div>';
+            } catch (Exception $e) {
+                $conn->rollback();
+                $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">' . htmlspecialchars($e->getMessage()) . '</div>';
+            }
+        }
+    }
+}
+
 $search = sanitizeString($_GET['search'] ?? '', 100);
 $date_f = sanitizeString($_GET['date'] ?? '', 20);
 $where = ["1=1"];
@@ -50,9 +119,10 @@ $receipt_footer = getSetting($conn,'receipt_footer');
   <input type="date" name="date" class="filter-select" value="<?=htmlspecialchars($date_f)?>"/>
   <button type="submit" class="btn btn-outline">Filter</button>
 </div></form>
+<?=$msg?>
 <div class="grid-2">
 <div class="card"><div class="card-header"><span class="card-title">Recent Receipts (<?=$sales->num_rows?>)</span></div>
-<div class="table-wrap"><table><thead><tr><th>Receipt</th><th>Customer</th><th>Total</th><th>Payment</th><th>Type</th><th>Date</th></tr></thead>
+<div class="table-wrap"><table><thead><tr><th>Receipt</th><th>Customer</th><th>Total</th><th>Payment</th><th>Type</th><th>Status</th><th>Date</th></tr></thead>
 <tbody><?php while($s=$sales->fetch_assoc()):?>
 <tr class="clickable" onclick="window.location='?view=<?=$s['id']?><?=$search?"&search=".urlencode($search):''?>'" style="<?=isset($_GET['view'])&&$_GET['view']==$s['id']?'background:var(--purple-light)':''?>">
 <td class="text-purple"><?=htmlspecialchars($s['receipt_number'])?></td>
@@ -60,10 +130,20 @@ $receipt_footer = getSetting($conn,'receipt_footer');
 <td class="text-success"><?=tzs($s['total'])?></td>
 <td><span class="badge badge-<?=$s['payment_method']==='mpesa'?'success':($s['payment_method']==='debt'?'danger':'warning')?>"><?=ucfirst($s['payment_method'])?></span></td>
 <td><span class="badge badge-<?=$s['price_type']==='jumla'?'info':'purple'?>"><?=ucfirst($s['price_type'])?></span></td>
+<td><span class="badge badge-<?=$s['status']==='completed'?'success':'danger'?>"><?=ucfirst($s['status'])?></span></td>
 <td class="text-muted"><?=date('M d H:i',strtotime($s['created_at']))?></td>
 </tr><?php endwhile;?></tbody></table></div></div>
 
-<div class="card"><div class="card-header"><span class="card-title">Receipt Preview</span><?php if($selected_sale):?><button class="btn btn-primary btn-sm" onclick="printReceipt('#print-receipt')"> Print</button><?php endif;?></div>
+<div class="card"><div class="card-header"><span class="card-title">Receipt Preview</span>
+<?php if($selected_sale && $selected_sale['status']==='completed'):?>
+<div style="display:flex;gap:8px">
+<button class="btn btn-primary btn-sm" onclick="printReceipt('#print-receipt')"> Print</button>
+<form method="POST" style="margin:0" data-confirm="Delete receipt <?=htmlspecialchars($selected_sale['receipt_number'], ENT_QUOTES)?>? This restores its stock to inventory and cannot be undone."><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?=$selected_sale['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-danger btn-sm">Delete</button></form>
+</div>
+<?php elseif($selected_sale):?>
+<span class="badge badge-danger">Cancelled</span>
+<?php endif;?>
+</div>
 <div class="card-body receipt-preview-body">
 <?php if($selected_sale): ?>
 <div class="receipt-box" id="print-receipt">
