@@ -6,7 +6,8 @@ require_once 'includes/header.php';
 requirePrivilege('payroll');
 $msg = '';
 
-$offices = ['Cashewnut Sales', 'Home office', 'Pool Master', 'Z series sales', 'Driver', 'Others', 'Guard', 'Accountant', 'Manager'];
+$offices = ['Manager', 'Accountant', 'Cashewnut Sales', 'Z series sales', 'Pool Master', 'Home office', 'Driver', 'Guard', 'Others'];
+$default_office = 'Cashewnut Sales';
 
 $period = $_GET['period'] ?? date('Y-m');
 if (!preg_match('/^\d{4}-\d{2}$/', $period)) {
@@ -65,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $salary = sanitizeFloat($_POST['salary'] ?? 0);
         $start = sanitizeString($_POST['start_date'] ?? '', 20);
         $emp_office = sanitizeString($_POST['office'] ?? '', 40);
-        if (!in_array($emp_office, $offices, true)) $emp_office = $offices[0];
+        if (!in_array($emp_office, $offices, true)) $emp_office = $default_office;
         if ($name !== '' && $role !== '') {
             $stmt = $conn->prepare("INSERT INTO employees (name,role,phone,salary,start_date,office) VALUES (?,?,?,?,?,?)");
             $stmt->bind_param('sssdss', $name, $role, $phone, $salary, $start, $emp_office);
@@ -247,7 +248,7 @@ $not_generated_count = $stmt->get_result()->fetch_assoc()['c'];
   <td class="text-muted"><?=$i++?></td>
   <td class="td-bold"><?=htmlspecialchars($p['employee_name'])?></td>
   <td style="color:var(--text2);font-size:13px"><?=htmlspecialchars($p['employee_role'])?></td>
-  <td style="color:var(--text2);font-size:13px"><?=htmlspecialchars($p['employee_office'] ?? $offices[0])?></td>
+  <td style="color:var(--text2);font-size:13px"><?=htmlspecialchars($p['employee_office'] ?? $default_office)?></td>
   <td class="text-muted"><?=tzs($p['base_salary'])?></td>
   <td class="text-success"><?=tzs($p['bonus'])?></td>
   <td class="text-danger"><?=tzs($p['deductions'])?></td>
@@ -279,7 +280,7 @@ $not_generated_count = $stmt->get_result()->fetch_assoc()['c'];
 <form method="POST"><input type="hidden" name="action" value="add_employee"><?= csrfInput() ?><div class="modal-body">
 <div class="form-row"><div class="form-group"><label class="form-label">Full Name *</label><input name="name" class="form-control" required/></div><div class="form-group"><label class="form-label">Role / Position *</label><select name="role" class="form-control" required><option value="">Select role</option><option value="Sales Rep">Sales Rep</option><option value="Cashier">Cashier</option><option value="Driver">Driver</option><option value="Manager">Manager</option><option value="Accountant">Accountant</option><option value="Factory Worker">Factory Worker</option><option value="Other">Other</option></select></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-control" placeholder="+255 7XX XXX XXX"/></div><div class="form-group"><label class="form-label">Monthly Salary (TZS)</label><input type="number" name="salary" class="form-control"/></div></div>
-<div class="form-row"><div class="form-group"><label class="form-label">Start Date</label><input type="date" name="start_date" class="form-control" value="<?=date('Y-m-d')?>"/></div><div class="form-group"><label class="form-label">Office *</label><select name="office" class="form-control" required><?php foreach ($offices as $off): ?><option value="<?=htmlspecialchars($off)?>" <?=($office===$off||($office==='all'&&$off===$offices[0]))?'selected':''?>><?=htmlspecialchars($off)?></option><?php endforeach; ?></select></div></div>
+<div class="form-row"><div class="form-group"><label class="form-label">Start Date</label><input type="date" name="start_date" class="form-control" value="<?=date('Y-m-d')?>"/></div><div class="form-group"><label class="form-label">Office *</label><select name="office" class="form-control" required><?php foreach ($offices as $off): ?><option value="<?=htmlspecialchars($off)?>" <?=($office===$off||($office==='all'&&$off===$default_office))?'selected':''?>><?=htmlspecialchars($off)?></option><?php endforeach; ?></select></div></div>
 </div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('add-emp-modal')">Cancel</button><button type="submit" class="btn btn-primary">Add Employee</button></div></form></div></div>
 <?php endif; ?>
 

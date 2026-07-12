@@ -4,7 +4,8 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('employees');
 $msg = '';
-$offices = ['Cashewnut Sales', 'Home office', 'Pool Master', 'Z series sales', 'Driver', 'Others', 'Guard', 'Accountant', 'Manager'];
+$offices = ['Manager', 'Accountant', 'Cashewnut Sales', 'Z series sales', 'Pool Master', 'Home office', 'Driver', 'Guard', 'Others'];
+$default_office = 'Cashewnut Sales';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
     $action = $_POST['action']??'';
@@ -16,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $nida = sanitizeString($_POST['nida'] ?? '', 60);
         $start = sanitizeString($_POST['start_date'] ?? '', 20);
         $office = sanitizeString($_POST['office'] ?? '', 40);
-        if (!in_array($office, $offices, true)) $office = $offices[0];
+        if (!in_array($office, $offices, true)) $office = $default_office;
         $stmt=$conn->prepare("INSERT INTO employees (name,role,phone,salary,nida,start_date,office) VALUES (?,?,?,?,?,?,?)");
         $stmt->bind_param('sssdsss',$name,$role,$phone,$salary,$nida,$start,$office);$stmt->execute();
         logActivity($conn,"Employee added: $name",'system');
@@ -51,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $status = 'active';
         }
         $office = sanitizeString($_POST['office'] ?? '', 40);
-        if (!in_array($office, $offices, true)) $office = $offices[0];
+        if (!in_array($office, $offices, true)) $office = $default_office;
         $stmt = $conn->prepare("UPDATE employees SET name=?, role=?, phone=?, salary=?, nida=?, start_date=?, status=?, office=? WHERE id=?");
         $stmt->bind_param('sssdssssi', $name, $role, $phone, $salary, $nida, $start, $status, $office, $id);
         $stmt->execute();
@@ -101,11 +102,11 @@ if ($option_result) {
 <div class="card"><div class="card-header"><span class="card-title">All Employees</span></div>
 <div class="table-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Role</th><th>Office</th><th>Phone</th><th>Salary</th><th>Start Date</th><th>Status</th><th>Actions</th></tr></thead>
 <tbody><?php $i=1; while($e=$employees->fetch_assoc()):?>
-<tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($e['name'])?></td><td style="color:var(--text2);font-size:13px"><?=htmlspecialchars($e['role'])?></td><td style="color:var(--text2);font-size:13px"><?=htmlspecialchars($e['office'] ?? $offices[0])?></td><td><?=htmlspecialchars($e['phone'])?></td>
+<tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($e['name'])?></td><td style="color:var(--text2);font-size:13px"><?=htmlspecialchars($e['role'])?></td><td style="color:var(--text2);font-size:13px"><?=htmlspecialchars($e['office'] ?? $default_office)?></td><td><?=htmlspecialchars($e['phone'])?></td>
 <td class="text-purple"><?=tzs($e['salary'])?></td><td class="text-muted"><?=date('M d, Y',strtotime($e['start_date']))?></td>
 <td><span class="badge badge-<?=$e['status']==='active'?'success':($e['status']==='on_leave'?'warning':'danger')?>"><?=ucwords(str_replace('_',' ',$e['status']))?></span></td>
 <td style="display:flex;gap:8px;align-items:center">
-  <button type="button" class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='openEditEmployee(this)' data-id="<?=$e['id']?>" data-name="<?=htmlspecialchars($e['name'], ENT_QUOTES)?>" data-role="<?=htmlspecialchars($e['role'], ENT_QUOTES)?>" data-office="<?=htmlspecialchars($e['office'] ?? $offices[0], ENT_QUOTES)?>" data-phone="<?=htmlspecialchars($e['phone'], ENT_QUOTES)?>" data-salary="<?=htmlspecialchars($e['salary'], ENT_QUOTES)?>" data-nida="<?=htmlspecialchars($e['nida'], ENT_QUOTES)?>" data-start="<?=htmlspecialchars($e['start_date'], ENT_QUOTES)?>" data-status="<?=htmlspecialchars($e['status'], ENT_QUOTES)?>">✏️</button>
+  <button type="button" class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='openEditEmployee(this)' data-id="<?=$e['id']?>" data-name="<?=htmlspecialchars($e['name'], ENT_QUOTES)?>" data-role="<?=htmlspecialchars($e['role'], ENT_QUOTES)?>" data-office="<?=htmlspecialchars($e['office'] ?? $default_office, ENT_QUOTES)?>" data-phone="<?=htmlspecialchars($e['phone'], ENT_QUOTES)?>" data-salary="<?=htmlspecialchars($e['salary'], ENT_QUOTES)?>" data-nida="<?=htmlspecialchars($e['nida'], ENT_QUOTES)?>" data-start="<?=htmlspecialchars($e['start_date'], ENT_QUOTES)?>" data-status="<?=htmlspecialchars($e['status'], ENT_QUOTES)?>">✏️</button>
   <form method="POST" data-confirm="Delete <?=htmlspecialchars($e['name'], ENT_QUOTES)?>?" style="margin:0">
     <input type="hidden" name="action" value="delete">
     <input type="hidden" name="id" value="<?=$e['id']?>">
