@@ -6,7 +6,7 @@ require_once 'includes/header.php';
 requirePrivilege('payroll');
 $msg = '';
 
-$offices = ['Manager', 'Accountant', 'Cashewnut Sales', 'Z series sales', 'Pool Master', 'Home office', 'Driver', 'Guard', 'Others'];
+$offices = ['Manager', 'Accountant', 'Cashewnut Sales', 'Z series sales', 'Pool Master', 'Home office', 'Driver', 'Guard', 'Administrator', 'Others'];
 $default_office = 'Cashewnut Sales';
 
 $period = $_GET['period'] ?? date('Y-m');

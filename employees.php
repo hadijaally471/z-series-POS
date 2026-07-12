@@ -4,7 +4,7 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('employees');
 $msg = '';
-$offices = ['Manager', 'Accountant', 'Cashewnut Sales', 'Z series sales', 'Pool Master', 'Home office', 'Driver', 'Guard', 'Others'];
+$offices = ['Manager', 'Accountant', 'Cashewnut Sales', 'Z series sales', 'Pool Master', 'Home office', 'Driver', 'Guard', 'Administrator', 'Others'];
 $default_office = 'Cashewnut Sales';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
