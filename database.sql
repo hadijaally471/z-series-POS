@@ -84,6 +84,7 @@ CREATE TABLE employees (
   nida VARCHAR(50),
   start_date DATE,
   status ENUM('active','inactive','on_leave') DEFAULT 'active',
+  office ENUM('Cashewnut office','Home office','Pool master office') DEFAULT 'Cashewnut office',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
