@@ -4,7 +4,7 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('employees');
 $msg = '';
-$offices = ['Cashewnut Sales', 'Home office', 'Pool Master', 'Z series sales', 'Driver', 'Others'];
+$offices = ['Cashewnut Sales', 'Home office', 'Pool Master', 'Z series sales', 'Driver', 'Others', 'Guard'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
     $action = $_POST['action']??'';
