@@ -103,17 +103,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id > 0) {
             $conn->begin_transaction();
             try {
-                $stmt = $conn->prepare("SELECT p.*, e.name as employee_name FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.id=? FOR UPDATE");
+                $stmt = $conn->prepare("SELECT p.*, e.name as employee_name, e.office as employee_office, e.role as employee_role FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.id=? FOR UPDATE");
                 $stmt->bind_param('i', $id);
                 $stmt->execute();
                 $row = $stmt->get_result()->fetch_assoc();
                 if (!$row || $row['status'] === 'paid') {
                     throw new Exception('Payroll entry not found or already paid.');
                 }
-                $desc = "Salary payment — " . $row['employee_name'] . " (" . $row['period'] . ")";
-                $stmt = $conn->prepare("INSERT INTO expenses (description, category, employee_id, amount, expense_date, recorded_by) VALUES (?,?,?,?,CURDATE(),?)");
+                $emp_office = $row['employee_office'] ?? $default_office;
+                $desc = "Salary payment — " . $row['employee_name'] . " (" . $emp_office . ") — " . $row['period'];
+                $notes = "Base: " . tzs($row['base_salary']) . " | Bonus: " . tzs($row['bonus']) . " | Deductions: " . tzs($row['deductions']) . " | Net Pay: " . tzs($row['net_pay']) . " | Office: " . $emp_office . " | Role: " . $row['employee_role'];
+                $stmt = $conn->prepare("INSERT INTO expenses (description, category, employee_id, amount, expense_date, recorded_by, notes) VALUES (?,?,?,?,CURDATE(),?,?)");
                 $cat = 'staff';
-                $stmt->bind_param('ssidi', $desc, $cat, $row['employee_id'], $row['net_pay'], $_SESSION['user_id']);
+                $stmt->bind_param('ssidis', $desc, $cat, $row['employee_id'], $row['net_pay'], $_SESSION['user_id'], $notes);
                 $stmt->execute();
                 $expense_id = $conn->insert_id;
 

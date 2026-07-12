@@ -72,7 +72,7 @@ $employees_list = $conn->query("SELECT id, name FROM employees WHERE status='act
 <div class="card"><div class="card-header"><span class="card-title">Recent Expenses</span></div>
 <div class="table-wrap"><table><thead><tr><th>#</th><th>Description</th><th>Category</th><th>Belongs To</th><th>Amount</th><th>Date</th><th>Actions</th></tr></thead>
 <tbody><?php $i=1; while($e=$expenses->fetch_assoc()):?>
-<tr><td class="text-muted"><?=$i++?></td><td class="td-bold"><?=htmlspecialchars($e['description'])?></td>
+<tr><td class="text-muted"><?=$i++?></td><td><span class="td-bold"><?=htmlspecialchars($e['description'])?></span><?php if(!empty($e['notes'])):?><div style="color:var(--text3);font-size:12px;margin-top:2px"><?=htmlspecialchars($e['notes'])?></div><?php endif;?></td>
 <td><span class="badge badge-purple"><?=ucwords(str_replace('_',' ',$e['category']))?></span></td>
 <td class="text-muted"><?=$e['employee_name'] ? htmlspecialchars($e['employee_name']) : '—'?></td>
 <td class="text-danger"><?=tzs($e['amount'])?></td><td class="text-muted"><?=date('M d, Y',strtotime($e['expense_date']))?></td>
