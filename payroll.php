@@ -6,7 +6,7 @@ require_once 'includes/header.php';
 requirePrivilege('payroll');
 $msg = '';
 
-$offices = ['Cashewnut office', 'Home office', 'Pool master office'];
+$offices = ['Cashewnut Sales', 'Home office', 'Pool Master', 'Z series sales', 'Driver', 'Others'];
 
 $period = $_GET['period'] ?? date('Y-m');
 if (!preg_match('/^\d{4}-\d{2}$/', $period)) {

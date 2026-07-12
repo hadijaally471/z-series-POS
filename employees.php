@@ -4,7 +4,7 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('employees');
 $msg = '';
-$offices = ['Cashewnut office', 'Home office', 'Pool master office'];
+$offices = ['Cashewnut Sales', 'Home office', 'Pool Master', 'Z series sales', 'Driver', 'Others'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
     $action = $_POST['action']??'';
@@ -182,7 +182,7 @@ function openEditEmployee(button){
   document.getElementById('edit-nida').value = button.dataset.nida || '';
   document.getElementById('edit-start').value = button.dataset.start || '';
   document.getElementById('edit-status').value = button.dataset.status || 'active';
-  document.getElementById('edit-office').value = button.dataset.office || 'Cashewnut office';
+  document.getElementById('edit-office').value = button.dataset.office || 'Cashewnut Sales';
   openModal('edit-emp-modal');
 }
 </script>
