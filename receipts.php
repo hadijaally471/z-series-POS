@@ -22,20 +22,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception('Receipt not found or already cancelled.');
                 }
 
+                $debt_paid_note = '';
                 if ($sale['payment_method'] === 'debt') {
                     $stmt = $conn->prepare("SELECT * FROM debts WHERE sale_id=? FOR UPDATE");
                     $stmt->bind_param('i', $sid);
                     $stmt->execute();
                     $debt = $stmt->get_result()->fetch_assoc();
-                    if ($debt && (float)$debt['amount_paid'] > 0) {
-                        throw new Exception('This receipt has debt payments recorded against it — settle or reverse those in Debts before deleting this receipt.');
-                    }
                     if ($debt) {
+                        if ((float)$debt['amount_paid'] > 0) {
+                            $debt_paid_note = ' (' . number_format($debt['amount_paid']) . ' TZS already collected on the linked debt — payment history removed)';
+                        }
                         if ($debt['customer_id']) {
                             $stmt = $conn->prepare("UPDATE customers SET outstanding_debt = outstanding_debt - ? WHERE id=?");
                             $stmt->bind_param('di', $debt['balance'], $debt['customer_id']);
                             $stmt->execute();
                         }
+                        $stmt = $conn->prepare("DELETE FROM debt_payments WHERE debt_id=?");
+                        $stmt->bind_param('i', $debt['id']);
+                        $stmt->execute();
                         $stmt = $conn->prepare("DELETE FROM debts WHERE id=?");
                         $stmt->bind_param('i', $debt['id']);
                         $stmt->execute();
@@ -63,8 +67,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute();
 
                 $conn->commit();
-                logActivity($conn, "Receipt deleted: " . $sale['receipt_number'] . " (" . number_format($sale['total']) . " TZS, stock restored)", 'sale');
+                logActivity($conn, "Receipt deleted: " . $sale['receipt_number'] . " (" . number_format($sale['total']) . " TZS, stock restored)" . $debt_paid_note, 'sale');
                 $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Receipt deleted — stock has been restored to inventory.</div>';
+            } catch (Exception $e) {
+                $conn->rollback();
+                $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">' . htmlspecialchars($e->getMessage()) . '</div>';
+            }
+        }
+    }
+
+    if ($action === 'purge') {
+        $sid = sanitizeInt($_POST['id'] ?? 0);
+        if ($sid > 0) {
+            $conn->begin_transaction();
+            try {
+                $stmt = $conn->prepare("SELECT * FROM sales WHERE id=? FOR UPDATE");
+                $stmt->bind_param('i', $sid);
+                $stmt->execute();
+                $sale = $stmt->get_result()->fetch_assoc();
+                if (!$sale || $sale['status'] === 'completed') {
+                    throw new Exception('Receipt not found, or still active — delete it first before purging.');
+                }
+
+                $stmt = $conn->prepare("SELECT id FROM debts WHERE sale_id=? FOR UPDATE");
+                $stmt->bind_param('i', $sid);
+                $stmt->execute();
+                $leftoverDebt = $stmt->get_result()->fetch_assoc();
+                if ($leftoverDebt) {
+                    $stmt = $conn->prepare("DELETE FROM debt_payments WHERE debt_id=?");
+                    $stmt->bind_param('i', $leftoverDebt['id']);
+                    $stmt->execute();
+                    $stmt = $conn->prepare("DELETE FROM debts WHERE id=?");
+                    $stmt->bind_param('i', $leftoverDebt['id']);
+                    $stmt->execute();
+                }
+
+                $stmt = $conn->prepare("DELETE FROM sale_items WHERE sale_id=?");
+                $stmt->bind_param('i', $sid);
+                $stmt->execute();
+
+                $stmt = $conn->prepare("DELETE FROM sales WHERE id=?");
+                $stmt->bind_param('i', $sid);
+                $stmt->execute();
+
+                $conn->commit();
+                logActivity($conn, "Receipt permanently deleted: " . $sale['receipt_number'] . " (" . number_format($sale['total']) . " TZS)", 'sale');
+                $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Receipt permanently deleted.</div>';
             } catch (Exception $e) {
                 $conn->rollback();
                 $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">' . htmlspecialchars($e->getMessage()) . '</div>';
@@ -141,7 +189,10 @@ $receipt_footer = getSetting($conn,'receipt_footer');
 <form method="POST" style="margin:0" data-confirm="Delete receipt <?=htmlspecialchars($selected_sale['receipt_number'], ENT_QUOTES)?>? This restores its stock to inventory and cannot be undone."><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?=$selected_sale['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-danger btn-sm">Delete</button></form>
 </div>
 <?php elseif($selected_sale):?>
-<span class="badge badge-danger">Cancelled</span>
+<div style="display:flex;gap:8px;align-items:center">
+<span class="badge badge-danger"><?=ucfirst($selected_sale['status'])?></span>
+<form method="POST" style="margin:0" data-confirm="Permanently delete receipt <?=htmlspecialchars($selected_sale['receipt_number'], ENT_QUOTES)?>? This removes it from the database entirely and cannot be undone — use this only for test/junk data."><input type="hidden" name="action" value="purge"><input type="hidden" name="id" value="<?=$selected_sale['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-danger btn-sm">Permanently Delete</button></form>
+</div>
 <?php endif;?>
 </div>
 <div class="card-body receipt-preview-body">
