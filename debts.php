@@ -96,6 +96,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
     }
+    if ($action === 'delete') {
+    $debt_id = sanitizeInt($_POST['id'] ?? 0);
+    if ($debt_id > 0) {
+      $conn->begin_transaction();
+      try {
+        $stmt = $conn->prepare("SELECT * FROM debts WHERE id = ? FOR UPDATE");
+        $stmt->bind_param('i', $debt_id);
+        $stmt->execute();
+        $debt = $stmt->get_result()->fetch_assoc();
+        if (!$debt) {
+          throw new Exception('Debt record not found.');
+        }
+        if ((float)$debt['amount_paid'] > 0) {
+          throw new Exception('This debt has payments recorded against it — cannot delete.');
+        }
+        if ($debt['sale_id']) {
+          throw new Exception('This debt is linked to a sale — delete the receipt in Receipts instead.');
+        }
+        if ($debt['customer_id']) {
+          $stmt_c = $conn->prepare("UPDATE customers SET outstanding_debt = outstanding_debt - ? WHERE id = ?");
+          $stmt_c->bind_param('di', $debt['balance'], $debt['customer_id']);
+          $stmt_c->execute();
+        }
+        $stmt_d = $conn->prepare("DELETE FROM debts WHERE id = ?");
+        $stmt_d->bind_param('i', $debt_id);
+        $stmt_d->execute();
+        $conn->commit();
+        logActivity($conn, "Debt deleted: " . $debt['customer_name'] . " — " . number_format($debt['amount']) . " TZS", 'debt');
+        $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Debt record deleted!</div>';
+      } catch (Exception $e) {
+        $conn->rollback();
+        $msg='<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">'.htmlspecialchars($e->getMessage()).'</div>';
+      }
+    }
+    }
 }
 $debts = $conn->query("SELECT * FROM debts ORDER BY FIELD(status,'outstanding','partial','cleared'), debt_date ASC");
 $stats = $conn->query("SELECT COALESCE(SUM(balance),0) as total, COUNT(*) as count, SUM(status='partial') as partial, SUM(DATEDIFF(CURDATE(),due_date)>0 AND status!='cleared') as overdue FROM debts WHERE status != 'cleared'")->fetch_assoc();
@@ -123,7 +158,12 @@ $status_class = $cleared ? 'success' : ($d['status']==='partial'?'warning':'dang
 <td class="text-muted"><?=date('M d, Y',strtotime($d['debt_date']))?></td>
 <td class="<?=$overdue?'text-danger':''?>"><?=$d['due_date']?date('M d, Y',strtotime($d['due_date'])):'—'?></td>
 <td><span class="badge badge-<?=$status_class?>"><?=$status_labels[$d['status']]?></span></td>
-<td><?php if(!$cleared): ?><button class="btn btn-success btn-sm" onclick="event.stopPropagation();payDebt(<?=$d['id']?>,<?=$d['balance']?>,'<?=htmlspecialchars($d['customer_name'], ENT_QUOTES)?>','<?=$d['due_date']?:''?>')">Pay</button><?php else: ?>—<?php endif; ?></td>
+<td style="display:flex;gap:6px;align-items:center">
+<?php if(!$cleared): ?><button class="btn btn-success btn-sm" onclick="event.stopPropagation();payDebt(<?=$d['id']?>,<?=$d['balance']?>,'<?=htmlspecialchars($d['customer_name'], ENT_QUOTES)?>','<?=$d['due_date']?:''?>')">Pay</button><?php endif; ?>
+<?php if((float)$d['amount_paid']===0.0 && !$d['sale_id']): ?>
+<form method="POST" style="margin:0" onclick="event.stopPropagation()" data-confirm="Delete this debt record for <?=htmlspecialchars($d['customer_name'], ENT_QUOTES)?>? This cannot be undone."><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?=$d['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-danger btn-sm">Delete</button></form>
+<?php elseif($cleared): ?>—<?php endif; ?>
+</td>
 </tr>
 <?php endwhile; if($debts->num_rows===0):?><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--success)">No debts recorded yet!</td></tr><?php endif;?></tbody></table></div></div>
 
