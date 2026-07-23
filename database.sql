@@ -4,6 +4,8 @@
 
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS activity_log;
+DROP TABLE IF EXISTS billiard_sales;
+DROP TABLE IF EXISTS billiard_branches;
 DROP TABLE IF EXISTS debt_payments;
 DROP TABLE IF EXISTS debts;
 DROP TABLE IF EXISTS sale_items;
@@ -267,13 +269,41 @@ CREATE TABLE settings (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- UZUNGUNI BILLIARDS ARENA
+-- A separate business (tables/branches), kept in its own tables so its
+-- revenue never mixes with the Z-Series `sales` totals used in Reports.
+CREATE TABLE billiard_branches (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  location VARCHAR(200),
+  token_rate DECIMAL(10,2) NOT NULL DEFAULT 500,
+  status ENUM('active','inactive') DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE billiard_sales (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  receipt_number VARCHAR(20) UNIQUE NOT NULL,
+  branch_id INT NOT NULL,
+  tokens INT NOT NULL,
+  rate_per_token DECIMAL(10,2) NOT NULL,
+  total DECIMAL(12,2) NOT NULL,
+  payment_method ENUM('cash','lipa','bank') DEFAULT 'cash',
+  cashier_id INT,
+  notes TEXT,
+  status ENUM('completed','cancelled') DEFAULT 'completed',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (branch_id) REFERENCES billiard_branches(id),
+  FOREIGN KEY (cashier_id) REFERENCES users(id)
+);
+
 -- =====================
 -- DEFAULT DATA
 -- =====================
 
 -- Admin user (password: admin123)
 INSERT INTO users (name, username, password, role, phone, privileges) VALUES
-('Administrator', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', '+255 712 000 000', 'dashboard,pos,inventory,customers,suppliers,expenses,debts,purchase_orders,reports,receipts,employees,activity,settings,users');
+('Administrator', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', '+255 712 000 000', 'dashboard,pos,inventory,customers,suppliers,expenses,debts,purchase_orders,reports,receipts,employees,activity,settings,users,billiards');
 
 -- Categories
 INSERT INTO categories (name) VALUES ('Tiles'), ('Soap/Cleaner'), ('Cashew Nuts');
@@ -313,6 +343,11 @@ INSERT INTO employees (name, role, phone, salary, start_date, status) VALUES
 ('Bakari Hamisi', 'Factory Worker', '+255 734 000 003', 280000, '2025-06-01', 'active'),
 ('Zuwena Ali', 'Factory Worker', '+255 745 000 004', 280000, '2025-06-01', 'on_leave'),
 ('Omari Hassan', 'Driver', '+255 756 000 005', 320000, '2025-09-01', 'active');
+
+-- Uzunguni Billiards Arena branches
+INSERT INTO billiard_branches (name, location, token_rate) VALUES
+('Uzunguni A', 'Uzunguni', 500),
+('Uzunguni B', 'Uzunguni', 500);
 
 -- Settings
 INSERT INTO settings (setting_key, setting_value) VALUES

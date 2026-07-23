@@ -48,7 +48,8 @@ $available_privileges = [
     'employees' => 'Employees',
     'activity' => 'Activity Log',
     'settings' => 'Settings',
-    'users' => 'Users'
+    'users' => 'Users',
+    'billiards' => 'Uzunguni Billiards'
 ];
 
 $msg = '';
