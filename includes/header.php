@@ -121,6 +121,9 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
   <?php if(hasPrivilege('users')): ?>
   <a href="users.php" class="nav-item <?= $current_page==='users'?'active':'' ?>"><span class="nav-icon">👤</span> Users</a>
   <?php endif; ?>
+  <?php if($user_role === 'admin'): ?>
+  <a href="personal_expenses.php" class="nav-item <?= $current_page==='personal_expenses'?'active':'' ?>"><span class="nav-icon">🔒</span> Personal Expenses</a>
+  <?php endif; ?>
 
   <div class="sidebar-bottom">
     <div class="user-card">

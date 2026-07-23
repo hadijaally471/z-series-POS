@@ -4,6 +4,7 @@
 
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS activity_log;
+DROP TABLE IF EXISTS personal_expenses;
 DROP TABLE IF EXISTS billiard_sales;
 DROP TABLE IF EXISTS billiard_branches;
 DROP TABLE IF EXISTS debt_payments;
@@ -295,6 +296,21 @@ CREATE TABLE billiard_sales (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (branch_id) REFERENCES billiard_branches(id),
   FOREIGN KEY (cashier_id) REFERENCES users(id)
+);
+
+-- PERSONAL EXPENSES
+-- Admin-only private ledger of money drawn from a business, tagged with
+-- its source. Never referenced by Reports' revenue/profit calculations.
+CREATE TABLE personal_expenses (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  description VARCHAR(500) NOT NULL,
+  source ENUM('uzunguni','cashewnuts','z_series') NOT NULL DEFAULT 'z_series',
+  amount DECIMAL(12,2) NOT NULL,
+  expense_date DATE NOT NULL,
+  notes TEXT,
+  recorded_by INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (recorded_by) REFERENCES users(id)
 );
 
 -- =====================
