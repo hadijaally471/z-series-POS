@@ -7,6 +7,7 @@ const PRODUCT_CATALOG = [
     'Cashew Nuts - Baked',
     'Cashew Nuts - Mbichi (Raw)',
     'Cashew Nuts - Roasted',
+    'Korosho vipande',
     'Liquid Soap (1L)',
     'Liquid Soap (5L)',
     'Master 23 Special for Tiles (1L)',
