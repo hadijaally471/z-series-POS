@@ -1,17 +1,24 @@
 <?php
-$page_title = 'Inventory';
+// admin_inventory.php — private, admin-only stock pool. Shares the product
+// catalog and `categories` table with the employee-visible `products`
+// table, but keeps an independent stock count. Stock only reaches the
+// visible inventory.php through the explicit "Transfer" action below.
+$page_title = 'Private Inventory';
 require_once 'includes/header.php';
-requirePrivilege('inventory');
+requirePrivilege('admin_inventory');
+if (($_SESSION['user_role'] ?? '') !== 'admin') {
+  http_response_code(403);
+  die('<div style="padding: 40px; text-align: center; font-family: sans-serif; color: #dc3545;"><h2>Access Denied</h2><p>Private Inventory is restricted to admin accounts only.</p><a href="dashboard.php" style="color: #0d6efd; text-decoration: none;">Back to Dashboard</a></div>');
+}
 
-// Handle add/edit/delete
+// Handle add/edit/delete/transfer
 $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['export'] ?? '') === 'csv') {
-    requirePrivilege('inventory');
     header('Content-Type: text/csv');
-    header('Content-Disposition: attachment; filename="inventory_products.csv"');
+    header('Content-Disposition: attachment; filename="private_inventory.csv"');
     $out = fopen('php://output', 'w');
     fputcsv($out, ['name', 'category', 'rejareja_price', 'jumla_price', 'stock', 'unit', 'low_stock_threshold']);
-    $stmt = $conn->prepare("SELECT p.name, c.name as category, p.rejareja_price, p.jumla_price, p.stock, p.unit, p.low_stock_threshold FROM products p LEFT JOIN categories c ON p.category_id=c.id WHERE p.status='active' ORDER BY c.name, p.name");
+    $stmt = $conn->prepare("SELECT p.name, c.name as category, p.rejareja_price, p.jumla_price, p.stock, p.unit, p.low_stock_threshold FROM admin_inventory p LEFT JOIN categories c ON p.category_id=c.id WHERE p.status='active' ORDER BY c.name, p.name");
     $stmt->execute();
     $rows = $stmt->get_result();
     while ($row = $rows->fetch_assoc()) {
@@ -31,33 +38,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stock      = sanitizeInt($_POST['stock'] ?? 0);
         $unit       = sanitizeString($_POST['unit'] ?? '', 30);
         $threshold  = sanitizeInt($_POST['low_stock_threshold'] ?? 10);
-        
+
         if ($action === 'add') {
-            $stmt = $conn->prepare("INSERT INTO products (name,category_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?)");
+            $stmt = $conn->prepare("INSERT INTO admin_inventory (name,category_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?)");
             $stmt->bind_param('siddisi', $name,$cat_id,$rejareja,$jumla,$stock,$unit,$threshold);
             $stmt->execute();
-            logActivity($conn, "Product added: $name", 'product');
+            logActivity($conn, "Private stock added: $name", 'product');
             $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Product added successfully!</div>';
         } else {
             $id = (int)$_POST['id'];
-            $stmt = $conn->prepare("UPDATE products SET name=?,category_id=?,rejareja_price=?,jumla_price=?,stock=?,unit=?,low_stock_threshold=? WHERE id=?");
+            $stmt = $conn->prepare("UPDATE admin_inventory SET name=?,category_id=?,rejareja_price=?,jumla_price=?,stock=?,unit=?,low_stock_threshold=? WHERE id=?");
             $stmt->bind_param('siddisii', $name,$cat_id,$rejareja,$jumla,$stock,$unit,$threshold,$id);
             $stmt->execute();
-            logActivity($conn, "Product updated: $name", 'product');
+            logActivity($conn, "Private stock updated: $name", 'product');
             $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Product updated!</div>';
         }
     }
     if ($action === 'delete') {
       $id = sanitizeInt($_POST['id'] ?? 0);
-      $stmt = $conn->prepare("SELECT name FROM products WHERE id = ?");
+      $stmt = $conn->prepare("SELECT name FROM admin_inventory WHERE id = ?");
       $stmt->bind_param('i', $id);
       $stmt->execute();
       $p = $stmt->get_result()->fetch_assoc();
-      $stmt = $conn->prepare("UPDATE products SET status='inactive' WHERE id = ?");
+      $stmt = $conn->prepare("UPDATE admin_inventory SET status='inactive' WHERE id = ?");
       $stmt->bind_param('i', $id);
       $stmt->execute();
-        logActivity($conn, "Product removed: ".$p['name'], 'product');
-        $msg = '<div style="color:var(--warning);padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;margin-bottom:14px">Product removed from inventory.</div>';
+        logActivity($conn, "Private stock removed: ".$p['name'], 'product');
+        $msg = '<div style="color:var(--warning);padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;margin-bottom:14px">Product removed from private inventory.</div>';
+    }
+    if ($action === 'transfer') {
+      $id  = sanitizeInt($_POST['id'] ?? 0);
+      $qty = sanitizeInt($_POST['qty'] ?? 0);
+      if ($id <= 0 || $qty <= 0) {
+        $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Enter a valid quantity to transfer.</div>';
+      } else {
+        $conn->begin_transaction();
+        try {
+          $stmt = $conn->prepare("SELECT * FROM admin_inventory WHERE id = ? FOR UPDATE");
+          $stmt->bind_param('i', $id);
+          $stmt->execute();
+          $src = $stmt->get_result()->fetch_assoc();
+          if (!$src) {
+            throw new Exception('Private stock item not found.');
+          }
+          if ($qty > (int)$src['stock']) {
+            throw new Exception('Cannot transfer more than the ' . $src['stock'] . ' units available.');
+          }
+
+          $stmt = $conn->prepare("UPDATE admin_inventory SET stock = stock - ? WHERE id = ?");
+          $stmt->bind_param('ii', $qty, $id);
+          $stmt->execute();
+
+          $stmt = $conn->prepare("SELECT id FROM products WHERE name = ? LIMIT 1 FOR UPDATE");
+          $stmt->bind_param('s', $src['name']);
+          $stmt->execute();
+          $dest = $stmt->get_result()->fetch_assoc();
+          if ($dest) {
+            $stmt = $conn->prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
+            $stmt->bind_param('ii', $qty, $dest['id']);
+            $stmt->execute();
+          } else {
+            $stmt = $conn->prepare("INSERT INTO products (name,category_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?)");
+            $stmt->bind_param('siddisi', $src['name'], $src['category_id'], $src['rejareja_price'], $src['jumla_price'], $qty, $src['unit'], $src['low_stock_threshold']);
+            $stmt->execute();
+          }
+
+          $conn->commit();
+          logActivity($conn, "Transferred $qty " . unitLabel($src['unit']) . " of " . $src['name'] . " to visible inventory", 'product');
+          $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Transferred ' . $qty . ' units to the visible inventory.</div>';
+        } catch (Exception $e) {
+          $conn->rollback();
+          $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Transfer failed: ' . htmlspecialchars($e->getMessage()) . '</div>';
+        }
+      }
     }
       if ($action === 'import') {
         if (!isset($_FILES['import_file']) || $_FILES['import_file']['error'] !== UPLOAD_ERR_OK) {
@@ -114,17 +167,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   }
                 }
 
-                $stmt = $conn->prepare("SELECT id FROM products WHERE name = ? LIMIT 1");
+                $stmt = $conn->prepare("SELECT id FROM admin_inventory WHERE name = ? LIMIT 1");
                 $stmt->bind_param('s', $name);
                 $stmt->execute();
                 $existing = $stmt->get_result()->fetch_assoc();
                 if ($existing) {
                   $id = (int)$existing['id'];
-                  $stmt = $conn->prepare("UPDATE products SET category_id=?, rejareja_price=?, jumla_price=?, stock=?, unit=?, low_stock_threshold=? WHERE id=?");
+                  $stmt = $conn->prepare("UPDATE admin_inventory SET category_id=?, rejareja_price=?, jumla_price=?, stock=?, unit=?, low_stock_threshold=? WHERE id=?");
                   $stmt->bind_param('iddisii', $cat_id, $rejareja, $jumla, $stock, $unit, $threshold, $id);
                   $stmt->execute();
                 } else {
-                  $stmt = $conn->prepare("INSERT INTO products (name,category_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?)");
+                  $stmt = $conn->prepare("INSERT INTO admin_inventory (name,category_id,rejareja_price,jumla_price,stock,unit,low_stock_threshold) VALUES (?,?,?,?,?,?,?)");
                   $stmt->bind_param('siddisi', $name, $cat_id, $rejareja, $jumla, $stock, $unit, $threshold);
                   $stmt->execute();
                 }
@@ -162,14 +215,14 @@ if ($stock_filter === 'low')  $where[] = "p.stock <= p.low_stock_threshold AND p
 if ($stock_filter === 'out')  $where[] = "p.stock = 0";
 if ($stock_filter === 'ok')   $where[] = "p.stock > p.low_stock_threshold";
 
-$stmt = $conn->prepare("SELECT p.*, c.name as cat_name FROM products p LEFT JOIN categories c ON p.category_id=c.id WHERE " . implode(' AND ', $where) . " ORDER BY c.name, p.name");
+$stmt = $conn->prepare("SELECT p.*, c.name as cat_name FROM admin_inventory p LEFT JOIN categories c ON p.category_id=c.id WHERE " . implode(' AND ', $where) . " ORDER BY c.name, p.name");
 if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $products = $stmt->get_result();
 $categories = $conn->query("SELECT * FROM categories ORDER BY name");
-$total_products = $conn->query("SELECT COUNT(*) as c FROM products WHERE status='active'")->fetch_assoc()['c'];
-$low_count  = $conn->query("SELECT COUNT(*) as c FROM products WHERE stock<=low_stock_threshold AND stock>0 AND status='active'")->fetch_assoc()['c'];
-$out_count  = $conn->query("SELECT COUNT(*) as c FROM products WHERE stock=0 AND status='active'")->fetch_assoc()['c'];
+$total_products = $conn->query("SELECT COUNT(*) as c FROM admin_inventory WHERE status='active'")->fetch_assoc()['c'];
+$low_count  = $conn->query("SELECT COUNT(*) as c FROM admin_inventory WHERE stock<=low_stock_threshold AND stock>0 AND status='active'")->fetch_assoc()['c'];
+$out_count  = $conn->query("SELECT COUNT(*) as c FROM admin_inventory WHERE stock=0 AND status='active'")->fetch_assoc()['c'];
 $ok_count   = $total_products - $low_count - $out_count;
 ?>
 
@@ -204,7 +257,7 @@ $ok_count   = $total_products - $low_count - $out_count;
 
 <div class="card">
   <div class="card-header">
-    <span class="card-title">All Products (<?= $products->num_rows ?>)</span>
+    <span class="card-title">Private Stock (<?= $products->num_rows ?>)</span>
     <div style="display:flex;gap:8px;align-items:center">
       <a class="card-action" href="?export=csv">Export CSV</a>
       <button type="button" class="card-action" onclick="openModal('import-products-modal')">Import CSV</button>
@@ -231,6 +284,7 @@ $ok_count   = $total_products - $low_count - $out_count;
           <td>
             <div class="action-buttons">
               <button class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick='editProduct(<?= json_encode($p) ?>)'>✏️</button>
+              <button class="btn btn-outline btn-sm" title="Transfer to Inventory" aria-label="Transfer to Inventory" onclick='transferProduct(<?= json_encode($p) ?>)' <?= $p['stock']==0?'disabled':'' ?>>📦➡️</button>
               <form method="POST" onsubmit="return confirm('Remove this product?')">
                 <?= csrfInput() ?>
                 <input type="hidden" name="action" value="delete"/>
@@ -334,6 +388,35 @@ $ok_count   = $total_products - $low_count - $out_count;
   </div>
 </div>
 
+<!-- Transfer to Inventory Modal -->
+<div class="modal-overlay" id="transfer-product-modal" data-dismiss="true">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Transfer to Visible Inventory</span>
+      <button class="modal-close" onclick="closeModal('transfer-product-modal')">&times;</button>
+    </div>
+    <form method="POST">
+      <?= csrfInput() ?>
+      <input type="hidden" name="action" value="transfer"/>
+      <input type="hidden" name="id" id="t-id"/>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" id="t-name-label">Product</label>
+          <div id="t-available" style="color:var(--text3);font-size:13px;margin-bottom:8px"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity to Transfer *</label>
+          <input type="number" name="qty" id="t-qty" class="form-control" min="1" required/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('transfer-product-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Transfer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <?php
 $extra_js = <<<'JS'
 <script>
@@ -355,6 +438,15 @@ function editProduct(p){
   document.getElementById('p-unit').value = p.unit;
   document.getElementById('p-thresh').value = p.low_stock_threshold;
   openModal('add-product-modal');
+}
+function transferProduct(p){
+  document.getElementById('t-id').value = p.id;
+  document.getElementById('t-name-label').textContent = p.name;
+  document.getElementById('t-available').textContent = p.stock + ' available in private inventory';
+  const qty = document.getElementById('t-qty');
+  qty.value = '';
+  qty.max = p.stock;
+  openModal('transfer-product-modal');
 }
 </script>
 JS;

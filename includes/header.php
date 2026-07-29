@@ -12,6 +12,13 @@ $low_stock_count = 0;
 $ls = $conn->query("SELECT COUNT(*) as c FROM products WHERE stock <= low_stock_threshold AND status='active'");
 if ($ls) $low_stock_count = $ls->fetch_assoc()['c'];
 
+// Low stock count for the private (admin-only) inventory badge
+$admin_low_stock_count = 0;
+if ($user_role === 'admin') {
+    $als = $conn->query("SELECT COUNT(*) as c FROM admin_inventory WHERE stock <= low_stock_threshold AND status='active'");
+    if ($als) $admin_low_stock_count = $als->fetch_assoc()['c'];
+}
+
 // Due/overdue task count for badge (current user's own tasks)
 $due_task_count = 0;
 $dt = $conn->prepare("SELECT COUNT(*) as c FROM tasks WHERE user_id = ? AND status = 'pending' AND due_date <= CURDATE()");
@@ -123,6 +130,10 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
   <?php endif; ?>
   <?php if($user_role === 'admin'): ?>
   <a href="personal_expenses.php" class="nav-item <?= $current_page==='personal_expenses'?'active':'' ?>"><span class="nav-icon">🔒</span> Personal Expenses</a>
+  <a href="admin_inventory.php" class="nav-item <?= $current_page==='admin_inventory'?'active':'' ?>">
+    <span class="nav-icon">🔒</span> Private Inventory
+    <?php if($admin_low_stock_count>0): ?><span class="nav-badge"><?= $admin_low_stock_count ?></span><?php endif; ?>
+  </a>
   <?php endif; ?>
 
   <div class="sidebar-bottom">

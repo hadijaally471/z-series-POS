@@ -229,6 +229,22 @@ function unitLabel($unit) {
     return $labels[$unit] ?? $unit;
 }
 
+// Product catalog shared by inventory.php and admin_inventory.php
+const PRODUCT_CATALOG = [
+    'Cashew Nuts - Baked',
+    'Cashew Nuts - Mbichi (Raw)',
+    'Cashew Nuts - Roasted',
+    'Korosho vipande',
+    'Liquid Soap (1L)',
+    'Liquid Soap (5L)',
+    'Master 23 Special for Tiles (1L)',
+    'Master 23 Special for Tiles (5L)',
+    'Master 23 Tiles and Sink Cleaner (1L)',
+    'Master 23 Tiles and Sink Cleaner (5L)',
+    'Z Series Tiles and Sink Cleaner (1L)',
+    'Z Series Tiles and Sink Cleaner (5L)',
+];
+
 // Get setting
 function getSetting($conn, $key) {
     $stmt = $conn->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
