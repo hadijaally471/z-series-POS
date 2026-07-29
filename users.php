@@ -49,7 +49,8 @@ $available_privileges = [
     'activity' => 'Activity Log',
     'settings' => 'Settings',
     'users' => 'Users',
-    'billiards' => 'Uzunguni Billiards'
+    'billiards' => 'Uzunguni Billiards',
+    'wifi_billing' => 'WiFi Billing'
 ];
 
 $msg = '';

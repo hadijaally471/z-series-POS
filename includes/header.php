@@ -108,6 +108,11 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
   <a href="billiards.php" class="nav-item <?= $current_page==='billiards'?'active':'' ?>"><span class="nav-icon">🎱</span> Billiards Arena</a>
   <?php endif; ?>
 
+  <div class="sidebar-section">WiFi Billing</div>
+  <?php if(hasPrivilege('wifi_billing')): ?>
+  <a href="wifi_billing.php" class="nav-item <?= $current_page==='wifi_billing'?'active':'' ?>"><span class="nav-icon">📶</span> WiFi Bundles</a>
+  <?php endif; ?>
+
   <div class="sidebar-section">Management</div>
   <?php if(hasPrivilege('reports')): ?>
   <a href="reports.php" class="nav-item <?= $current_page==='reports'?'active':'' ?>"><span class="nav-icon">📈</span> Reports</a>
