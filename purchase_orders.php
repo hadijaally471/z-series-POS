@@ -26,6 +26,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         logActivity($conn,"Purchase Order created: $po_number — $sup_name",'po');
         $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Purchase Order '.$po_number.' created!</div>';
     }
+    if ($action === 'edit') {
+        $id = sanitizeInt($_POST['id'] ?? 0);
+        $sup_id = !empty($_POST['supplier_id'])?sanitizeInt($_POST['supplier_id']):null;
+        $sup_name = sanitizeString($_POST['supplier_name'] ?? '', 200);
+        $items = sanitizeString($_POST['items'] ?? '', 2000);
+        $total = sanitizeFloat($_POST['total_amount'] ?? 0);
+        $terms = sanitizeString($_POST['payment_terms'] ?? '', 100);
+        $expected = sanitizeString($_POST['expected_date'] ?? '', 20);
+        if ($id > 0 && $sup_name !== '' && $items !== '') {
+            $stmt = $conn->prepare("UPDATE purchase_orders SET supplier_id=?, supplier_name=?, items=?, total_amount=?, payment_terms=?, expected_date=? WHERE id=?");
+            $stmt->bind_param('issdssi', $sup_id, $sup_name, $items, $total, $terms, $expected, $id);
+            $stmt->execute();
+            logActivity($conn,"Purchase Order updated: #$id — $sup_name",'po');
+            $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Purchase order updated!</div>';
+        }
+    }
     if ($action === 'receive') {
       $id = sanitizeInt($_POST['id'] ?? 0);
       $stmt = $conn->prepare("UPDATE purchase_orders SET status='received' WHERE id = ?");
@@ -99,6 +115,7 @@ $stats = $conn->query("SELECT SUM(status='pending') as pending, SUM(status='rece
   <form method="POST" style="margin:0" data-confirm="Cancel this purchase order?"><input type="hidden" name="action" value="cancel"><?= csrfInput() ?><input type="hidden" name="id" value="<?=$po['id']?>">
   <button type="submit" class="btn btn-warning btn-sm">Cancel</button></form>
   <?php endif;?>
+  <button type="button" class="btn btn-outline btn-sm" title="Edit" aria-label="Edit" onclick="openEditPO(this)" data-id="<?=$po['id']?>" data-supplier-id="<?=$po['supplier_id']?>" data-supplier-name="<?=htmlspecialchars($po['supplier_name'], ENT_QUOTES)?>" data-items="<?=htmlspecialchars($po['items'], ENT_QUOTES)?>" data-total="<?=htmlspecialchars($po['total_amount'], ENT_QUOTES)?>" data-terms="<?=htmlspecialchars($po['payment_terms'] ?? '', ENT_QUOTES)?>" data-expected="<?=htmlspecialchars($po['expected_date'] ?? '', ENT_QUOTES)?>">✏️</button>
   <form method="POST" style="margin:0" data-confirm="Delete purchase order <?=htmlspecialchars($po['po_number'], ENT_QUOTES)?>?"><input type="hidden" name="action" value="delete"><?= csrfInput() ?><input type="hidden" name="id" value="<?=$po['id']?>">
   <button type="submit" class="btn btn-danger btn-sm">Delete</button></form>
 </td></tr>
@@ -114,9 +131,31 @@ $stats = $conn->query("SELECT SUM(status='pending') as pending, SUM(status='rece
 <div class="form-group"><label class="form-label">Expected Date</label><input type="date" name="expected_date" class="form-control" value="<?=date('Y-m-d',strtotime('+7 days'))?>"/></div></div>
 <div class="form-group"><label class="form-label">Payment Terms</label><select name="payment_terms" class="form-control"><option>Cash on Delivery</option><option>50% Advance</option><option>Full Advance</option><option>Credit 30 days</option></select></div>
 </div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('add-po-modal')">Cancel</button><button type="submit" class="btn btn-primary">Create Order</button></div></form></div></div>
+<div class="modal-overlay" id="edit-po-modal" data-dismiss="true"><div class="modal"><div class="modal-header"><span class="modal-title">Edit Purchase Order</span><button class="modal-close" onclick="closeModal('edit-po-modal')">✕</button></div>
+<form method="POST"><input type="hidden" name="action" value="edit"><input type="hidden" name="id" id="edit-po-id"><?= csrfInput() ?><div class="modal-body">
+<div class="form-row">
+<div class="form-group"><label class="form-label">Supplier *</label><select name="supplier_id" id="edit-po-sup-select" class="form-control" onchange="setEditSupName(this)" required><option value="">Select supplier</option><?php $suppliers->data_seek(0); while($s=$suppliers->fetch_assoc()):?><option value="<?=$s['id']?>"><?=htmlspecialchars($s['name'])?></option><?php endwhile;?></select></div>
+<div class="form-group"><label class="form-label">Supplier Name</label><input name="supplier_name" id="edit-po-sup-name" class="form-control"/></div></div>
+<div class="form-group"><label class="form-label">Items & Quantities *</label><textarea name="items" id="edit-po-items" class="form-control" rows="3" required></textarea></div>
+<div class="form-row">
+<div class="form-group"><label class="form-label">Total Amount (TZS) *</label><input type="number" name="total_amount" id="edit-po-total" class="form-control" required/></div>
+<div class="form-group"><label class="form-label">Expected Date</label><input type="date" name="expected_date" id="edit-po-expected" class="form-control"/></div></div>
+<div class="form-group"><label class="form-label">Payment Terms</label><select name="payment_terms" id="edit-po-terms" class="form-control"><option>Cash on Delivery</option><option>50% Advance</option><option>Full Advance</option><option>Credit 30 days</option></select></div>
+</div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('edit-po-modal')">Cancel</button><button type="submit" class="btn btn-primary">Save Changes</button></div></form></div></div>
 <?php
 $extra_js = "<script>
 function setSupName(sel){document.getElementById('po-sup-name').value=sel.selectedOptions[0].text;}
+function setEditSupName(sel){document.getElementById('edit-po-sup-name').value=sel.selectedOptions[0].text;}
+function openEditPO(btn){
+  document.getElementById('edit-po-id').value = btn.dataset.id;
+  document.getElementById('edit-po-sup-select').value = btn.dataset.supplierId;
+  document.getElementById('edit-po-sup-name').value = btn.dataset.supplierName;
+  document.getElementById('edit-po-items').value = btn.dataset.items;
+  document.getElementById('edit-po-total').value = btn.dataset.total;
+  document.getElementById('edit-po-terms').value = btn.dataset.terms;
+  document.getElementById('edit-po-expected').value = btn.dataset.expected;
+  openModal('edit-po-modal');
+}
 document.addEventListener('DOMContentLoaded', function() {
   const msgDiv = document.querySelector('div[style*=\"color:var\"]');
   if (msgDiv && (msgDiv.textContent.trim().length > 0)) {
