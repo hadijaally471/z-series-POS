@@ -60,7 +60,11 @@ $cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Mo
     
     <!-- Customer select -->
     <div style="padding:10px 12px 0">
-      <select class="form-control" id="customer-select" style="font-size:12px">
+      <div style="position:relative">
+        <input type="text" class="form-control" id="customer-search" style="font-size:12px" placeholder="Walk-in Customer — search to select..." autocomplete="off"/>
+        <div id="customer-search-results" style="display:none;position:absolute;z-index:20;top:100%;left:0;right:0;max-height:220px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;margin-top:4px;box-shadow:0 8px 20px rgba(0,0,0,0.35)"></div>
+      </div>
+      <select id="customer-select" style="display:none">
         <option value="">Walk-in Customer</option>
         <?php $customers_result->data_seek(0); while($c = $customers_result->fetch_assoc()): ?>
         <option value="<?= $c['id'] ?>" data-location="<?= htmlspecialchars($c['location'] ?? '') ?>"><?= htmlspecialchars($c['name']) ?><?= $c['category'] ? ' ('.htmlspecialchars($client_categories[$c['category']]).')' : '' ?></option>
@@ -231,6 +235,42 @@ document.getElementById('customer-select')?.addEventListener('change', (e) => {
   }
 });
 
+// --- Customer search box: filters the hidden <select id="customer-select"> so all existing logic (change listener, .value, .selectedOptions[0].text, save/restore) keeps working unchanged ---
+const customerOptions = Array.from(document.getElementById('customer-select').options).filter(o => o.value);
+
+function selectCustomer(id, label){
+  const sel = document.getElementById('customer-select');
+  sel.value = id;
+  sel.dispatchEvent(new Event('change'));
+  document.getElementById('customer-search').value = label;
+  document.getElementById('customer-search-results').style.display = 'none';
+}
+
+function renderCustomerResults(matches){
+  const box = document.getElementById('customer-search-results');
+  if(!matches.length){ box.style.display='none'; box.innerHTML=''; return; }
+  box.innerHTML = matches.slice(0,50).map(o =>
+    `<div class="customer-result-item" data-id="${o.value}" style="padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border2)" onmousedown="selectCustomer('${o.value}', this.textContent)">${o.text}</div>`
+  ).join('');
+  box.style.display = 'block';
+}
+
+document.getElementById('customer-search')?.addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  if(!q){ document.getElementById('customer-search-results').style.display='none'; return; }
+  renderCustomerResults(customerOptions.filter(o => o.text.toLowerCase().includes(q)));
+});
+
+document.getElementById('customer-search')?.addEventListener('focus', (e) => {
+  if(e.target.value.trim()) renderCustomerResults(customerOptions.filter(o => o.text.toLowerCase().includes(e.target.value.trim().toLowerCase())));
+});
+
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('#customer-search') && !e.target.closest('#customer-search-results')){
+    document.getElementById('customer-search-results').style.display = 'none';
+  }
+});
+
 function addToCart(el){
   if(el.classList.contains('out-of-stock')){showToast('Out of stock!','error');return;}
   const id = el.dataset.id;
@@ -318,6 +358,7 @@ function processSale(){
       renderCart();
       localStorage.removeItem(POS_STORAGE_KEY);
       document.getElementById('customer-select').value='';
+      document.getElementById('customer-search').value='';
       document.getElementById('sales-rep-select').value='';
     } else showToast(data.message||'Error!','error');
   }).catch(()=>showToast('Connection error!','error'));
@@ -384,7 +425,11 @@ function loadPosState(){
     if(document.getElementById('discount-input') && typeof s.discount !== 'undefined') document.getElementById('discount-input').value = s.discount;
     if(s.debtAmountPaid) debtAmountPaid = s.debtAmountPaid;
     if(s.debtDueDate) debtDueDate = s.debtDueDate;
-    if(document.getElementById('customer-select') && typeof s.customer !== 'undefined') document.getElementById('customer-select').value = s.customer;
+    if(document.getElementById('customer-select') && typeof s.customer !== 'undefined'){
+      document.getElementById('customer-select').value = s.customer;
+      const opt = document.getElementById('customer-select').selectedOptions[0];
+      document.getElementById('customer-search').value = (opt && opt.value) ? opt.text : '';
+    }
     if(document.getElementById('sales-rep-select') && typeof s.salesRep !== 'undefined') document.getElementById('sales-rep-select').value = s.salesRep;
     if(priceType) {
       document.getElementById('btn-rejareja').classList.toggle('active', priceType==='rejareja');
