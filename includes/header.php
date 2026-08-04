@@ -139,6 +139,7 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
     <span class="nav-icon">🔒</span> Private Inventory
     <?php if($admin_low_stock_count>0): ?><span class="nav-badge"><?= $admin_low_stock_count ?></span><?php endif; ?>
   </a>
+  <a href="backup.php" class="nav-item <?= $current_page==='backup'?'active':'' ?>"><span class="nav-icon">🔒</span> Backups</a>
   <?php endif; ?>
 
   <div class="sidebar-bottom">

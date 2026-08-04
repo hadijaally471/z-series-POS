@@ -11,6 +11,7 @@ if (!empty($_SESSION['inventory_flash'])) {
 }
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['export'] ?? '') === 'csv') {
     requirePrivilege('inventory');
+    ob_end_clean(); // discard the sidebar HTML already buffered by header.php — stream a clean CSV instead
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="inventory_products.csv"');
     $out = fopen('php://output', 'w');

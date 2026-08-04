@@ -18,6 +18,7 @@ if (!empty($_SESSION['admin_inventory_flash'])) {
   unset($_SESSION['admin_inventory_flash']);
 }
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['export'] ?? '') === 'csv') {
+    ob_end_clean(); // discard the sidebar HTML already buffered by header.php — stream a clean CSV instead
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="private_inventory.csv"');
     $out = fopen('php://output', 'w');
