@@ -73,6 +73,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
+  if ($action === 'purge') {
+    if (!$is_admin) {
+      $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Only an admin can permanently delete a sale.</div>';
+    } else {
+      $sale_id = sanitizeInt($_POST['id'] ?? 0);
+      $stmt = $conn->prepare("SELECT receipt_number FROM billiard_sales WHERE id = ? AND status='cancelled'");
+      $stmt->bind_param('i', $sale_id);
+      $stmt->execute();
+      $sale = $stmt->get_result()->fetch_assoc();
+      if (!$sale) {
+        $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Sale not found, or still active — void it first before deleting.</div>';
+      } else {
+        $stmt = $conn->prepare("DELETE FROM billiard_sales WHERE id = ? AND status='cancelled'");
+        $stmt->bind_param('i', $sale_id);
+        $stmt->execute();
+        logActivity($conn, "Billiards sale permanently deleted: " . $sale['receipt_number'], 'sale');
+        $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Sale permanently deleted.</div>';
+      }
+    }
+  }
+
   if ($action === 'add_branch') {
     if (!$is_admin) {
       $msg = '<div style="color:var(--danger);padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:14px">Only an admin can add branches.</div>';
@@ -319,6 +340,11 @@ $branch_rates_json = json_encode($branch_rate_map);
           <form method="POST" style="margin:0" data-confirm="Void receipt <?=htmlspecialchars($s['receipt_number'], ENT_QUOTES)?>? This removes it from revenue totals.">
             <input type="hidden" name="action" value="void"><input type="hidden" name="id" value="<?=$s['id']?>"><?=csrfInput()?>
             <button type="submit" class="btn btn-danger btn-sm">Void</button>
+          </form>
+        <?php else: ?>
+          <form method="POST" style="margin:0" data-confirm="Permanently delete receipt <?=htmlspecialchars($s['receipt_number'], ENT_QUOTES)?>? This removes it from the database entirely and cannot be undone.">
+            <input type="hidden" name="action" value="purge"><input type="hidden" name="id" value="<?=$s['id']?>"><?=csrfInput()?>
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
           </form>
         <?php endif; ?></td>
         <?php endif; ?>
