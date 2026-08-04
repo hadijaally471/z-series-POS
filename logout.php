@@ -9,5 +9,5 @@ if (ini_get('session.use_cookies')) {
     setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
 }
 session_destroy();
-redirectTo('index.php');
+redirectTo('index.php' . (isset($_GET['timeout']) ? '?timeout=1' : ''));
 ?>

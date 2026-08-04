@@ -101,11 +101,22 @@ if (empty($_SESSION['csrf_token'])) {
 }
 
 // Auth check
+define('IDLE_TIMEOUT_SECONDS', 180);
+
 function requireLogin() {
     global $conn;
     if (!isset($_SESSION['user_id'])) {
         redirectTo('index.php');
     }
+    // Idle timeout — enforced server-side so it holds even if JS is disabled or
+    // someone jumps straight to a URL after walking away. The client-side timer
+    // in main.js additionally logs out proactively while a page just sits open.
+    if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > IDLE_TIMEOUT_SECONDS) {
+        session_unset();
+        session_destroy();
+        redirectTo('index.php?timeout=1');
+    }
+    $_SESSION['last_activity'] = time();
     // Re-check status/role/privileges against the DB on every request, rather than
     // only at login — otherwise revoking a privilege or deactivating a user doesn't
     // actually take effect until their session happens to end.

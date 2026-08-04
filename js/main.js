@@ -1,5 +1,25 @@
 // Z-Series POS — Main JavaScript
 
+// IDLE AUTO-LOGOUT — proactively signs out after 3 minutes with no mouse/
+// keyboard/touch activity, rather than waiting for the next page request.
+// Backed up by a server-side check in requireLogin() (config.php) that
+// enforces the same limit even if JS is disabled or a tab is reopened later.
+(function(){
+  const IDLE_LIMIT_MS = 3 * 60 * 1000;
+  let idleTimer = null;
+  function goToLogout(){
+    window.location.href = appUrl('logout.php') + '?timeout=1';
+  }
+  function resetIdleTimer(){
+    if(idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(goToLogout, IDLE_LIMIT_MS);
+  }
+  ['mousemove','mousedown','keydown','touchstart','scroll','wheel'].forEach(evt=>{
+    document.addEventListener(evt, resetIdleTimer, {passive:true});
+  });
+  resetIdleTimer();
+})();
+
 // SIDEBAR TOGGLE (mobile)
 document.addEventListener('DOMContentLoaded',function(){
   const sidebar = document.querySelector('.sidebar');

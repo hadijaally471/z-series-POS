@@ -4,6 +4,9 @@ if (isset($_SESSION['user_id'])) {
     redirectTo('dashboard.php');
 }
 $error = '';
+if (isset($_GET['timeout']) && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $error = 'You were signed out due to inactivity. Please sign in again.';
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
     $username = trim($_POST['username'] ?? '');
