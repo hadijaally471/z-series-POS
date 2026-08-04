@@ -5,7 +5,7 @@ if (isset($_SESSION['user_id'])) {
 }
 $error = '';
 if (isset($_GET['timeout']) && $_SERVER['REQUEST_METHOD'] !== 'POST') {
-    $error = 'You were signed out due to inactivity. Please sign in again.';
+    $error = 'Session expired. Please sign in again.';
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
