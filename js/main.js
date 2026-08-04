@@ -192,21 +192,41 @@ document.addEventListener('DOMContentLoaded',function(){
 // Notifications: fetch real business notifications from server + localStorage fallback
 const NOTIF_KEY = 'zseries_notifications_v1';
 const NOTIF_CACHE_KEY = 'zseries_notif_cache_v1';
+// Notifications are derived live from current business data (low stock, overdue
+// debts, etc.) — the server has no "read" flag to update. So read/dismissed state
+// has to be tracked here, by id, and re-applied every time we refetch. IDs are
+// stable per underlying record (e.g. "low_stock_123"), so once the real-world
+// condition clears, the id drops out of the server's list and gets pruned below —
+// meaning it can naturally reappear as unread if it happens again later.
+const NOTIF_READ_KEY = 'zseries_notif_read_v1';
 const NOTIF_REFRESH_INTERVAL = 30000; // 30 seconds
 
 let notificationRefreshTimer = null;
 
 function loadNotifications(){
-  try{ 
-    const raw = localStorage.getItem(NOTIF_CACHE_KEY); 
-    return raw?JSON.parse(raw):[]; 
+  try{
+    const raw = localStorage.getItem(NOTIF_CACHE_KEY);
+    return raw?JSON.parse(raw):[];
   }catch(e){return [];}
 }
 
 function saveNotifications(list){
-  try{ 
-    localStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(list)); 
-  }catch(e){console.error('saveNotifications',e);} 
+  try{
+    localStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(list));
+  }catch(e){console.error('saveNotifications',e);}
+}
+
+function loadReadIds(){
+  try{
+    const raw = localStorage.getItem(NOTIF_READ_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){return [];}
+}
+
+function saveReadIds(ids){
+  try{
+    localStorage.setItem(NOTIF_READ_KEY, JSON.stringify(ids));
+  }catch(e){console.error('saveReadIds',e);}
 }
 
 function fetchNotificationsFromServer(){
@@ -215,6 +235,11 @@ function fetchNotificationsFromServer(){
     .then(data=> {
       if(data.notifications && Array.isArray(data.notifications)){
         saveNotifications(data.notifications);
+        // Drop read ids that no longer correspond to an active notification,
+        // so a resolved-then-recurring issue can notify again.
+        const activeIds = new Set(data.notifications.map(n=>n.id));
+        const prunedReadIds = loadReadIds().filter(id=>activeIds.has(id));
+        saveReadIds(prunedReadIds);
         renderNotifications();
       }
     })
@@ -222,7 +247,8 @@ function fetchNotificationsFromServer(){
 }
 
 function renderNotifications(){
-  const list = loadNotifications();
+  const readIds = new Set(loadReadIds());
+  const list = loadNotifications().filter(n=>!readIds.has(n.id));
   const container = document.getElementById('notif-list');
   const badge = document.getElementById('notif-badge');
   if(!container) return;
@@ -236,11 +262,11 @@ function renderNotifications(){
     </div>`;
   }).join('');
   const unreadCount = list.length;
-  if(badge){ 
-    if(unreadCount>0){ 
-      badge.style.display='inline-block'; 
-      badge.textContent = unreadCount; 
-    } else badge.style.display='none'; 
+  if(badge){
+    if(unreadCount>0){
+      badge.style.display='inline-block';
+      badge.textContent = unreadCount;
+    } else badge.style.display='none';
   }
 }
 function addNotification(notif){
@@ -253,13 +279,12 @@ function addNotification(notif){
   showToast(n.title||'New notification','info');
 }
 function markAllRead(){
-  // Since we fetch from server, we just clear cache and re-fetch
-  localStorage.removeItem(NOTIF_CACHE_KEY);
-  fetchNotificationsFromServer();
+  const allIds = loadNotifications().map(n=>n.id);
+  saveReadIds(allIds);
+  renderNotifications();
 }
 function clearNotifications(){
-  localStorage.removeItem(NOTIF_CACHE_KEY);
-  renderNotifications();
+  markAllRead();
 }
 function escapeHtml(s){ return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
