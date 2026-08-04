@@ -6,6 +6,10 @@ require_once 'includes/header.php';
 requirePrivilege('tasks');
 $user_id = (int)$_SESSION['user_id'];
 $msg = '';
+if (!empty($_SESSION['tasks_flash'])) {
+  $msg = $_SESSION['tasks_flash'];
+  unset($_SESSION['tasks_flash']);
+}
 $allowed_priorities = ['low', 'medium', 'high'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -68,6 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Task deleted!</div>';
         }
     }
+
+    $_SESSION['tasks_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: tasks.php' . $redirect_qs);
+    exit;
 }
 
 // --- Calendar month setup ---

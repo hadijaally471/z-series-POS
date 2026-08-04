@@ -4,6 +4,10 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('suppliers');
 $msg = '';
+if (!empty($_SESSION['suppliers_flash'])) {
+  $msg = $_SESSION['suppliers_flash'];
+  unset($_SESSION['suppliers_flash']);
+}
 $allowed_types = ['chemicals','z_series_pkg','master_23_pkg','korosho'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
@@ -56,6 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+
+    $_SESSION['suppliers_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: suppliers.php' . $redirect_qs);
+    exit;
 }
 $search = sanitizeString($_GET['search']??'', 100);
 $type_f = in_array($_GET['type'] ?? '', $allowed_types, true) ? $_GET['type'] : '';

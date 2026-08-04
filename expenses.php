@@ -4,6 +4,10 @@ $page_title = 'Expenses';
 require_once 'includes/header.php';
 requirePrivilege('expenses');
 $msg = '';
+if (!empty($_SESSION['expenses_flash'])) {
+  $msg = $_SESSION['expenses_flash'];
+  unset($_SESSION['expenses_flash']);
+}
 $allowed = ['transport','utilities','staff','raw_materials','rent','maintenance','other'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
@@ -48,6 +52,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg='<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Expense deleted!</div>';
         }
     }
+
+    $_SESSION['expenses_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: expenses.php' . $redirect_qs);
+    exit;
 }
 $month = date('Y-m');
 $today = date('Y-m-d');

@@ -13,6 +13,10 @@ if (($_SESSION['user_role'] ?? '') !== 'admin') {
 
 // Handle add/edit/delete/transfer
 $msg = '';
+if (!empty($_SESSION['admin_inventory_flash'])) {
+  $msg = $_SESSION['admin_inventory_flash'];
+  unset($_SESSION['admin_inventory_flash']);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['export'] ?? '') === 'csv') {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="private_inventory.csv"');
@@ -193,6 +197,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           }
         }
       }
+
+    $_SESSION['admin_inventory_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: admin_inventory.php' . $redirect_qs);
+    exit;
 }
 
   $search     = sanitizeString($_GET['search'] ?? '', 100);

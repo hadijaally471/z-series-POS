@@ -8,6 +8,10 @@ require_once 'includes/header.php';
 requirePrivilege('wifi_billing');
 $is_admin = ($_SESSION['user_role'] ?? '') === 'admin';
 $msg = '';
+if (!empty($_SESSION['wifi_billing_flash'])) {
+  $msg = $_SESSION['wifi_billing_flash'];
+  unset($_SESSION['wifi_billing_flash']);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
@@ -113,6 +117,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
   }
+
+  $_SESSION['wifi_billing_flash'] = $msg;
+  $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+  header('Location: wifi_billing.php' . $redirect_qs);
+  exit;
 }
 
 $customers = $conn->query("SELECT * FROM wifi_customers ORDER BY name");

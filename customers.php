@@ -5,6 +5,10 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('customers');
 $msg = '';
+if (!empty($_SESSION['customers_flash'])) {
+  $msg = $_SESSION['customers_flash'];
+  unset($_SESSION['customers_flash']);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
     $action = $_POST['action'] ?? '';
@@ -54,6 +58,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+
+    $_SESSION['customers_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: customers.php' . $redirect_qs);
+    exit;
 }
 $search = sanitizeString($_GET['search'] ?? '', 100);
 $cat_f = in_array($_GET['category'] ?? '', ['wholesale', 'retail'], true) ? $_GET['category'] : '';

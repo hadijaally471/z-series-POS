@@ -5,6 +5,10 @@ require_once 'includes/header.php';
 requirePrivilege('billiards');
 $is_admin = ($_SESSION['user_role'] ?? '') === 'admin';
 $msg = '';
+if (!empty($_SESSION['billiards_flash'])) {
+  $msg = $_SESSION['billiards_flash'];
+  unset($_SESSION['billiards_flash']);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
@@ -109,6 +113,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
   }
+
+  // POST/redirect/GET: send the browser to a plain GET after processing, so a
+  // page refresh replays the GET instead of resubmitting the form (which was
+  // duplicating token sales on refresh).
+  $_SESSION['billiards_flash'] = $msg;
+  $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+  header('Location: billiards.php' . $redirect_qs);
+  exit;
 }
 
 $branches = $conn->query("SELECT * FROM billiard_branches ORDER BY name");

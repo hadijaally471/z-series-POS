@@ -5,6 +5,10 @@ requirePrivilege('inventory');
 
 // Handle add/edit/delete
 $msg = '';
+if (!empty($_SESSION['inventory_flash'])) {
+  $msg = $_SESSION['inventory_flash'];
+  unset($_SESSION['inventory_flash']);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['export'] ?? '') === 'csv') {
     requirePrivilege('inventory');
     header('Content-Type: text/csv');
@@ -140,6 +144,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           }
         }
       }
+
+    $_SESSION['inventory_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: inventory.php' . $redirect_qs);
+    exit;
 }
 
   $search     = sanitizeString($_GET['search'] ?? '', 100);

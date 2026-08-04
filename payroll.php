@@ -5,6 +5,10 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('payroll');
 $msg = '';
+if (!empty($_SESSION['payroll_flash'])) {
+  $msg = $_SESSION['payroll_flash'];
+  unset($_SESSION['payroll_flash']);
+}
 
 $offices = ['Manager', 'Accountant', 'Cashewnut Sales', 'Z series sales', 'Pool Master', 'Home office', 'Driver', 'Guard', 'Administrator', 'Others'];
 $default_office = 'Cashewnut Sales';
@@ -181,6 +185,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+
+    $_SESSION['payroll_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: payroll.php' . $redirect_qs);
+    exit;
 }
 
 $list_sql = "SELECT p.*, e.name as employee_name, e.role as employee_role, e.office as employee_office FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.period=?";

@@ -3,6 +3,10 @@ $page_title = 'Settings';
 require_once 'includes/header.php';
 requirePrivilege('settings');
 $msg = '';
+if (!empty($_SESSION['settings_flash'])) {
+  $msg = $_SESSION['settings_flash'];
+  unset($_SESSION['settings_flash']);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
     $action = $_POST['action']??'';
@@ -45,6 +49,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+
+    $_SESSION['settings_flash'] = $msg;
+    header('Location: settings.php');
+    exit;
 }
 function gs($conn,$k){return htmlspecialchars(getSetting($conn,$k));}
 ?>

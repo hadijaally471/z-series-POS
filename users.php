@@ -54,6 +54,10 @@ $available_privileges = [
 ];
 
 $msg = '';
+if (!empty($_SESSION['users_flash'])) {
+  $msg = $_SESSION['users_flash'];
+  unset($_SESSION['users_flash']);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
@@ -156,6 +160,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+
+    $_SESSION['users_flash'] = $msg;
+    header('Location: users.php');
+    exit;
 }
 
 $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");

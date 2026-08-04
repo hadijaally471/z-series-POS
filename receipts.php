@@ -5,6 +5,10 @@ $content_class = 'content premium-content receipt-page';
 require_once 'includes/header.php';
 requirePrivilege('receipts');
 $msg = '';
+if (!empty($_SESSION['receipts_flash'])) {
+  $msg = $_SESSION['receipts_flash'];
+  unset($_SESSION['receipts_flash']);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
@@ -119,6 +123,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+
+    $_SESSION['receipts_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: receipts.php' . $redirect_qs);
+    exit;
 }
 
 $search = sanitizeString($_GET['search'] ?? '', 100);

@@ -11,6 +11,10 @@ if (($_SESSION['user_role'] ?? '') !== 'admin') {
 }
 
 $msg = '';
+if (!empty($_SESSION['personal_expenses_flash'])) {
+  $msg = $_SESSION['personal_expenses_flash'];
+  unset($_SESSION['personal_expenses_flash']);
+}
 $allowed_sources = ['uzunguni', 'cashewnuts', 'z_series'];
 $source_labels = ['uzunguni' => 'Uzunguni Billiards', 'cashewnuts' => 'Cashew Nuts', 'z_series' => 'Z Series (Tiles/Soap)'];
 
@@ -65,6 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Personal expense deleted!</div>';
     }
   }
+
+  $_SESSION['personal_expenses_flash'] = $msg;
+  $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+  header('Location: personal_expenses.php' . $redirect_qs);
+  exit;
 }
 
 $month = date('Y-m');

@@ -1,4 +1,8 @@
 <?php
+// Buffer output so pages can still redirect (header('Location: ...')) after
+// having already echoed HTML — needed for the POST/redirect/GET pattern.
+ob_start();
+
 // Z-Series POS — Database Configuration
 // On hosting, create config.local.php from config.local.example.php.
 

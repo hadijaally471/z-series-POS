@@ -4,6 +4,10 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('employees');
 $msg = '';
+if (!empty($_SESSION['employees_flash'])) {
+  $msg = $_SESSION['employees_flash'];
+  unset($_SESSION['employees_flash']);
+}
 $offices = ['Manager', 'Accountant', 'Cashewnut Sales', 'Z series sales', 'Pool Master', 'Home office', 'Driver', 'Guard', 'Administrator', 'Others'];
 $default_office = 'Cashewnut Sales';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -59,6 +63,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         logActivity($conn, "Employee updated: $name", 'system');
         $msg='<div id="emp-msg" style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Employee updated!</div>';
     }
+
+    $_SESSION['employees_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: employees.php' . $redirect_qs);
+    exit;
 }
 $stats = $conn->query("SELECT COUNT(*) as total, SUM(status='active') as active, SUM(status='on_leave') as leave_count, COALESCE(SUM(salary),0) as payroll FROM employees")->fetch_assoc();
 $employee_options = [];

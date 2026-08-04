@@ -4,6 +4,10 @@ $content_class = 'content premium-content';
 require_once 'includes/header.php';
 requirePrivilege('debts');
 $msg = '';
+if (!empty($_SESSION['debts_flash'])) {
+  $msg = $_SESSION['debts_flash'];
+  unset($_SESSION['debts_flash']);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   requireCsrfToken();
     $action = $_POST['action'] ?? '';
@@ -132,6 +136,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
     }
+
+    $_SESSION['debts_flash'] = $msg;
+    $redirect_qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    header('Location: debts.php' . $redirect_qs);
+    exit;
 }
 $debts = $conn->query("SELECT * FROM debts ORDER BY FIELD(status,'outstanding','partial','cleared'), debt_date ASC");
 $stats = $conn->query("SELECT COALESCE(SUM(balance),0) as total, COUNT(*) as count, SUM(status='partial') as partial, SUM(DATEDIFF(CURDATE(),due_date)>0 AND status!='cleared') as overdue FROM debts WHERE status != 'cleared'")->fetch_assoc();
