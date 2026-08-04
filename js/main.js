@@ -102,6 +102,18 @@ function appUrl(path){
   return `${base}/${String(path || '').replace(/^\/+/, '')}`;
 }
 
+// Prevent double-submission (e.g. double-clicking "Record Sale") from creating
+// duplicate records before the browser has navigated away. Safe with no extra
+// re-enable logic: a full page load (success redirect or validation re-render)
+// always resets the DOM anyway, so there's nothing to restore on error.
+function disableSubmitButton(form){
+  const btn = form.querySelector('button[type="submit"]');
+  if(!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.dataset.originalText = btn.textContent;
+  btn.textContent = 'Please wait…';
+}
+
 // Confirm delete
 document.addEventListener('DOMContentLoaded',function(){
   // keep existing behavior for forms but prefer custom modal when available
@@ -111,11 +123,19 @@ document.addEventListener('DOMContentLoaded',function(){
       // if global confirm modal exists, use it
       if (typeof showConfirm === 'function') {
         e.preventDefault();
-        showConfirm(msg, ()=>{ this.submit(); });
+        // Disable only once the user actually confirms — not here, or Cancel
+        // would leave the button permanently stuck disabled.
+        showConfirm(msg, ()=>{ disableSubmitButton(this); this.submit(); });
       } else {
-        if(!confirm(msg)){e.preventDefault();}
+        if(!confirm(msg)){e.preventDefault();} else { disableSubmitButton(this); }
       }
     });
+  });
+
+  // Plain forms (no data-confirm) submit immediately — safe to disable right away.
+  document.querySelectorAll('form:not([data-confirm])').forEach(f=>{
+    if((f.method || '').toLowerCase() !== 'post') return;
+    f.addEventListener('submit', function(){ disableSubmitButton(this); });
   });
 
   // intercept links and buttons with data-confirm to show custom modal
