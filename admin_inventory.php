@@ -94,8 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $stmt->bind_param('ii', $qty, $id);
           $stmt->execute();
 
-          $stmt = $conn->prepare("SELECT id FROM products WHERE name = ? AND status = 'active' LIMIT 1 FOR UPDATE");
-          $stmt->bind_param('s', $src['name']);
+          $stmt = $conn->prepare("SELECT id FROM products WHERE name = ? AND unit = ? AND status = 'active' LIMIT 1 FOR UPDATE");
+          $stmt->bind_param('ss', $src['name'], $src['unit']);
           $stmt->execute();
           $dest = $stmt->get_result()->fetch_assoc();
           if ($dest) {
