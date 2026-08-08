@@ -36,7 +36,7 @@ if (APP_ENV === 'production') {
            . '<h2>Something went wrong</h2><p>Please try again. If this keeps happening, contact support.</p></body></html>';
     });
 
-    if (!isHttps()) {
+    if (PHP_SAPI !== 'cli' && !isHttps()) {
         header('Location: https://' . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
         exit();
     }
