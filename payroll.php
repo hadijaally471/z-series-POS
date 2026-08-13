@@ -86,14 +86,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $deductions = sanitizeFloat($_POST['deductions'] ?? 0);
         $notes = sanitizeString($_POST['notes'] ?? '', 500);
         if ($id > 0) {
-            $stmt = $conn->prepare("SELECT base_salary, status FROM payroll WHERE id=?");
+            $stmt = $conn->prepare("SELECT p.status, e.salary as employee_salary FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.id=?");
             $stmt->bind_param('i', $id);
             $stmt->execute();
             $row = $stmt->get_result()->fetch_assoc();
             if ($row && $row['status'] === 'pending') {
-                $net = (float)$row['base_salary'] + $bonus - $deductions;
-                $stmt = $conn->prepare("UPDATE payroll SET bonus=?, deductions=?, net_pay=?, notes=? WHERE id=?");
-                $stmt->bind_param('dddsi', $bonus, $deductions, $net, $notes, $id);
+                $base = (float)$row['employee_salary'];
+                $net = $base + $bonus - $deductions;
+                $stmt = $conn->prepare("UPDATE payroll SET base_salary=?, bonus=?, deductions=?, net_pay=?, notes=? WHERE id=?");
+                $stmt->bind_param('ddddsi', $base, $bonus, $deductions, $net, $notes, $id);
                 $stmt->execute();
                 $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Payroll entry updated!</div>';
             } else {
@@ -107,28 +108,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id > 0) {
             $conn->begin_transaction();
             try {
-                $stmt = $conn->prepare("SELECT p.*, e.name as employee_name, e.office as employee_office, e.role as employee_role FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.id=? FOR UPDATE");
+                $stmt = $conn->prepare("SELECT p.*, e.name as employee_name, e.office as employee_office, e.role as employee_role, e.salary as employee_salary FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.id=? FOR UPDATE");
                 $stmt->bind_param('i', $id);
                 $stmt->execute();
                 $row = $stmt->get_result()->fetch_assoc();
                 if (!$row || $row['status'] === 'paid') {
                     throw new Exception('Payroll entry not found or already paid.');
                 }
+                $base = (float)$row['employee_salary'];
+                $net = $base + (float)$row['bonus'] - (float)$row['deductions'];
                 $emp_office = $row['employee_office'] ?? $default_office;
                 $desc = "Salary payment — " . $row['employee_name'] . " (" . $emp_office . ") — " . $row['period'];
-                $notes = "Base: " . tzs($row['base_salary']) . " | Bonus: " . tzs($row['bonus']) . " | Deductions: " . tzs($row['deductions']) . " | Net Pay: " . tzs($row['net_pay']) . " | Office: " . $emp_office . " | Role: " . $row['employee_role'];
-                $stmt = $conn->prepare("INSERT INTO expenses (description, category, employee_id, amount, expense_date, recorded_by, notes) VALUES (?,?,?,?,CURDATE(),?,?)");
+                $notes = "Base: " . tzs($base) . " | Bonus: " . tzs($row['bonus']) . " | Deductions: " . tzs($row['deductions']) . " | Net Pay: " . tzs($net) . " | Office: " . $emp_office . " | Role: " . $row['employee_role'];
+                $expense_date = date('Y-m-t', strtotime($row['period'] . '-01'));
+                $stmt = $conn->prepare("INSERT INTO expenses (description, category, employee_id, amount, expense_date, recorded_by, notes) VALUES (?,?,?,?,?,?,?)");
                 $cat = 'staff';
-                $stmt->bind_param('ssidis', $desc, $cat, $row['employee_id'], $row['net_pay'], $_SESSION['user_id'], $notes);
+                $stmt->bind_param('ssidsis', $desc, $cat, $row['employee_id'], $net, $expense_date, $_SESSION['user_id'], $notes);
                 $stmt->execute();
                 $expense_id = $conn->insert_id;
 
-                $stmt = $conn->prepare("UPDATE payroll SET status='paid', paid_date=CURDATE(), expense_id=? WHERE id=?");
-                $stmt->bind_param('ii', $expense_id, $id);
+                $stmt = $conn->prepare("UPDATE payroll SET base_salary=?, net_pay=?, status='paid', paid_date=CURDATE(), expense_id=? WHERE id=?");
+                $stmt->bind_param('ddii', $base, $net, $expense_id, $id);
                 $stmt->execute();
 
                 $conn->commit();
-                logActivity($conn, "Payroll paid: " . $row['employee_name'] . " — " . number_format($row['net_pay']) . " TZS (" . $row['period'] . ")", 'payroll');
+                logActivity($conn, "Payroll paid: " . $row['employee_name'] . " — " . number_format($net) . " TZS (" . $row['period'] . ")", 'payroll');
                 $msg = '<div style="color:var(--success);padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;margin-bottom:14px">Marked as paid!</div>';
             } catch (Exception $e) {
                 $conn->rollback();
@@ -192,8 +196,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$list_sql = "SELECT p.*, e.name as employee_name, e.role as employee_role, e.office as employee_office FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.period=?";
-$stats_sql = "SELECT COUNT(*) as cnt, COALESCE(SUM(p.net_pay),0) as total, COALESCE(SUM(p.net_pay*(p.status='paid')),0) as paid, COALESCE(SUM(p.net_pay*(p.status='pending')),0) as pending FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.period=?";
+$list_sql = "SELECT p.*, e.name as employee_name, e.role as employee_role, e.office as employee_office, e.salary as employee_salary FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.period=?";
+$stats_sql = "SELECT COUNT(*) as cnt, COALESCE(SUM(CASE WHEN p.status='pending' THEN (e.salary+p.bonus-p.deductions) ELSE p.net_pay END),0) as total, COALESCE(SUM(p.net_pay*(p.status='paid')),0) as paid, COALESCE(SUM(CASE WHEN p.status='pending' THEN (e.salary+p.bonus-p.deductions) ELSE 0 END),0) as pending FROM payroll p JOIN employees e ON p.employee_id=e.id WHERE p.period=?";
 $not_gen_sql = "SELECT COUNT(*) as c FROM employees e WHERE e.status IN ('active','on_leave') AND e.role != 'Administrator' AND NOT EXISTS (SELECT 1 FROM payroll p WHERE p.employee_id=e.id AND p.period=?)";
 if ($office !== 'all') {
     $list_sql .= " AND e.office=?";
@@ -254,22 +258,26 @@ $not_generated_count = $stmt->get_result()->fetch_assoc()['c'];
 
 <div class="card"><div class="card-header"><span class="card-title">Payroll — <?=date('F Y', strtotime($period . '-01'))?></span></div>
 <div class="table-wrap"><table><thead><tr><th>#</th><th>Employee</th><th>Role</th><th>Office</th><th>Base Salary</th><th>Bonus</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Paid Date</th><th>Actions</th></tr></thead>
-<tbody><?php $i=1; while($p=$payroll_list->fetch_assoc()):?>
+<tbody><?php $i=1; while($p=$payroll_list->fetch_assoc()):
+  $is_pending = $p['status']==='pending';
+  $row_base = $is_pending ? (float)$p['employee_salary'] : (float)$p['base_salary'];
+  $row_net = $is_pending ? ($row_base + (float)$p['bonus'] - (float)$p['deductions']) : (float)$p['net_pay'];
+?>
 <tr>
   <td class="text-muted"><?=$i++?></td>
   <td class="td-bold"><?=htmlspecialchars($p['employee_name'])?></td>
   <td style="color:var(--text2);font-size:13px"><?=htmlspecialchars($p['employee_role'])?></td>
   <td style="color:var(--text2);font-size:13px"><?=htmlspecialchars($p['employee_office'] ?? $default_office)?></td>
-  <td class="text-muted"><?=tzs($p['base_salary'])?></td>
+  <td class="text-muted"><?=tzs($row_base)?></td>
   <td class="text-success"><?=tzs($p['bonus'])?></td>
   <td class="text-danger"><?=tzs($p['deductions'])?></td>
-  <td class="text-purple"><?=tzs($p['net_pay'])?></td>
+  <td class="text-purple"><?=tzs($row_net)?></td>
   <td><span class="badge badge-<?=$p['status']==='paid'?'success':'warning'?>"><?=ucfirst($p['status'])?></span></td>
   <td class="text-muted"><?=$p['paid_date']?date('M d, Y',strtotime($p['paid_date'])):'—'?></td>
   <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
     <?php if ($p['status']==='pending'): ?>
     <button type="button" class="btn btn-outline btn-sm" onclick='openEditPayroll(this)' data-id="<?=$p['id']?>" data-bonus="<?=$p['bonus']?>" data-deductions="<?=$p['deductions']?>" data-notes="<?=htmlspecialchars($p['notes'] ?? '', ENT_QUOTES)?>">Edit</button>
-    <form method="POST" style="margin:0" data-confirm="Mark <?=htmlspecialchars($p['employee_name'], ENT_QUOTES)?>'s salary as paid? This will record an expense of <?=tzs($p['net_pay'])?>."><input type="hidden" name="action" value="mark_paid"><input type="hidden" name="id" value="<?=$p['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-success btn-sm">Mark Paid</button></form>
+    <form method="POST" style="margin:0" data-confirm="Mark <?=htmlspecialchars($p['employee_name'], ENT_QUOTES)?>'s salary as paid? This will record an expense of <?=tzs($row_net)?>."><input type="hidden" name="action" value="mark_paid"><input type="hidden" name="id" value="<?=$p['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-success btn-sm">Mark Paid</button></form>
     <form method="POST" style="margin:0" data-confirm="Delete this payroll entry?"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?=$p['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-danger btn-sm">Delete</button></form>
     <?php else: ?>
     <form method="POST" style="margin:0" data-confirm="Revert this payment to pending? This will remove the linked expense record."><input type="hidden" name="action" value="revert"><input type="hidden" name="id" value="<?=$p['id']?>"><?=csrfInput()?><button type="submit" class="btn btn-outline btn-sm">Revert to Pending</button></form>
