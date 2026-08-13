@@ -11,7 +11,7 @@ $customers_result = $conn->query("SELECT * FROM customers WHERE status = 'active
 $client_categories = ['wholesale' => 'Wholesale', 'retail' => 'Retail'];
 $sales_reps = $conn->query("SELECT id, name, role FROM employees WHERE status='active' AND role='Sales Rep' ORDER BY name");
 $business_address = getSetting($conn,'business_address');
-$cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Kilimanjaro', 'Mbeya', 'Moshi', 'Mwanza', 'Iringa', 'Morogoro', 'Tanga', 'Kigoma', 'Singida', 'Tabora'];
+$cities_list = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Geita', 'Iringa', 'Kagera', 'Katavi', 'Kigoma', 'Kilimanjaro', 'Lindi', 'Manyara', 'Mara', 'Mbeya', 'Morogoro', 'Moshi', 'Mtwara', 'Mwanza', 'Njombe', 'Pemba North', 'Pemba South', 'Pwani', 'Rukwa', 'Ruvuma', 'Shinyanga', 'Simiyu', 'Singida', 'Songwe', 'Tabora', 'Tanga', 'Zanzibar North', 'Zanzibar South', 'Zanzibar Urban/West'];
 ?>
 <div class="pos-layout">
   <!-- LEFT: Products -->
