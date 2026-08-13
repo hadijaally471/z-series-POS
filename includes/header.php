@@ -26,11 +26,13 @@ $dt->bind_param('i', $_SESSION['user_id']);
 $dt->execute();
 $due_task_count = $dt->get_result()->fetch_assoc()['c'];
 
-// Pending payroll count for badge (current period)
+// Overdue payroll count for badge — pending entries from a past period,
+// or from the current period once we're in its final week (day >= 25)
 $pending_payroll_count = 0;
-$pp = $conn->prepare("SELECT COUNT(*) as c FROM payroll WHERE period = ? AND status = 'pending'");
 $current_period = date('Y-m');
-$pp->bind_param('s', $current_period);
+$is_late_in_month = (int)date('j') >= 25 ? 1 : 0;
+$pp = $conn->prepare("SELECT COUNT(*) as c FROM payroll WHERE status = 'pending' AND (period < ? OR (period = ? AND ? = 1))");
+$pp->bind_param('ssi', $current_period, $current_period, $is_late_in_month);
 $pp->execute();
 $pending_payroll_count = $pp->get_result()->fetch_assoc()['c'];
 
