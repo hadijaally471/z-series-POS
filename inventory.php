@@ -324,10 +324,8 @@ $ok_count   = $total_products - $low_count - $out_count;
           <div class="form-group"><label class="form-label">Stock Quantity *</label><input type="number" name="stock" id="p-stock" class="form-control" placeholder="0" required/></div>
           <div class="form-group"><label class="form-label">Unit</label>
             <select name="unit" id="p-unit" class="form-control">
-              <option value="kg">Kilograms (kg)</option>
-              <option value="half_kg">Half Kg</option>
-              <option value="quarter_kg">Quarter Kg</option>
               <option value="pc">Pieces (pc)</option>
+              <option value="half_ctns">Half Carton</option>
               <option value="ctns">Cartons (ctns)</option>
             </select>
           </div>

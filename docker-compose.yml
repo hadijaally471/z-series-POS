@@ -1,0 +1,46 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      APP_ENV: local
+      DB_HOST: db
+      DB_USER: root
+      DB_PASS: root
+      DB_NAME: zseries_pos
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: zseries_pos
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database.sql:/docker-entrypoint-initdb.d/00-database.sql
+      - ./migration_2026-07-07_forgot_password.sql:/docker-entrypoint-initdb.d/01-migration_2026-07-07_forgot_password.sql
+      - ./migration_2026-07-07_rate_limits.sql:/docker-entrypoint-initdb.d/02-migration_2026-07-07_rate_limits.sql
+      - ./migration_2026-07-07_tasks_payroll_categories.sql:/docker-entrypoint-initdb.d/03-migration_2026-07-07_tasks_payroll_categories.sql
+      - ./migration_2026-07-12_add_accountant_manager_office.sql:/docker-entrypoint-initdb.d/04-migration_2026-07-12_add_accountant_manager_office.sql
+      - ./migration_2026-07-12_add_administrator_office.sql:/docker-entrypoint-initdb.d/05-migration_2026-07-12_add_administrator_office.sql
+      - ./migration_2026-07-12_add_guard_office.sql:/docker-entrypoint-initdb.d/06-migration_2026-07-12_add_guard_office.sql
+      - ./migration_2026-07-12_employee_office.sql:/docker-entrypoint-initdb.d/07-migration_2026-07-12_employee_office.sql
+      - ./migration_2026-07-23_personal_expenses.sql:/docker-entrypoint-initdb.d/08-migration_2026-07-23_personal_expenses.sql
+      - ./migration_2026-07-23_uzunguni_billiards.sql:/docker-entrypoint-initdb.d/09-migration_2026-07-23_uzunguni_billiards.sql
+      - ./migration_2026-07-29_admin_inventory.sql:/docker-entrypoint-initdb.d/10-migration_2026-07-29_admin_inventory.sql
+      - ./migration_2026-07-29_wifi_billing.sql:/docker-entrypoint-initdb.d/11-migration_2026-07-29_wifi_billing.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

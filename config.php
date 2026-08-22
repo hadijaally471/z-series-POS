@@ -240,7 +240,7 @@ function tzs($amount) {
 
 // Human-readable product unit label
 function unitLabel($unit) {
-    $labels = ['kg' => 'kg', 'half_kg' => 'Half Kg', 'quarter_kg' => 'Quarter Kg', 'pc' => 'pc', 'ctns' => 'ctns'];
+    $labels = ['kg' => 'kg', 'half_kg' => 'Half Kg', 'quarter_kg' => 'Quarter Kg', 'pc' => 'pc', 'ctns' => 'ctns', 'half_ctns' => 'Half Carton'];
     return $labels[$unit] ?? $unit;
 }
 
@@ -251,12 +251,16 @@ const PRODUCT_CATALOG = [
     'Cashew Nuts - Roasted',
     'Korosho vipande',
     'Liquid Soap (1L)',
+    'Liquid Soap (1L) (6pc)',
     'Liquid Soap (5L)',
     'Master 23 Special for Tiles (1L)',
+    'Master 23 Special for Tiles (1L) (6pc)',
     'Master 23 Special for Tiles (5L)',
     'Master 23 Tiles and Sink Cleaner (1L)',
+    'Master 23 Tiles and Sink Cleaner (1L) (6pc)',
     'Master 23 Tiles and Sink Cleaner (5L)',
     'Z Series Tiles and Sink Cleaner (1L)',
+    'Z Series Tiles and Sink Cleaner (1L) (6pc)',
     'Z Series Tiles and Sink Cleaner (5L)',
 ];
 

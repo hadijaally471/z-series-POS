@@ -17,7 +17,7 @@ $apply = (PHP_SAPI === 'cli') ? in_array('--apply', $argv, true) : (($_GET['appl
 $res = $conn->query("SELECT DISTINCT action FROM activity_log WHERE type='product' AND action LIKE 'Transferred % to visible inventory'");
 $names = [];
 while ($row = $res->fetch_assoc()) {
-  if (preg_match('/^Transferred \d+ (?:kg|Half Kg|Quarter Kg|pc|ctns) of (.+) to visible inventory$/', $row['action'], $m)) {
+  if (preg_match('/^Transferred \d+ (?:kg|Half Kg|Quarter Kg|pc|ctns|Half Carton) of (.+) to visible inventory$/', $row['action'], $m)) {
     $names[$m[1]] = true;
   }
 }
