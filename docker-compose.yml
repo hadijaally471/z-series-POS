@@ -36,6 +36,12 @@ services:
       - ./migration_2026-07-23_uzunguni_billiards.sql:/docker-entrypoint-initdb.d/09-migration_2026-07-23_uzunguni_billiards.sql
       - ./migration_2026-07-29_admin_inventory.sql:/docker-entrypoint-initdb.d/10-migration_2026-07-29_admin_inventory.sql
       - ./migration_2026-07-29_wifi_billing.sql:/docker-entrypoint-initdb.d/11-migration_2026-07-29_wifi_billing.sql
+      - ./migration_2026-08-22_korosho.sql:/docker-entrypoint-initdb.d/12-migration_2026-08-22_korosho.sql
+      - ./migration_2026-08-22_korosho_customers.sql:/docker-entrypoint-initdb.d/13-migration_2026-08-22_korosho_customers.sql
+      - ./migration_2026-08-22_korosho_reps.sql:/docker-entrypoint-initdb.d/14-migration_2026-08-22_korosho_reps.sql
+      - ./migration_2026-08-22_korosho_buying_price.sql:/docker-entrypoint-initdb.d/15-migration_2026-08-22_korosho_buying_price.sql
+      - ./migration_2026-08-22_korosho_sales_rep.sql:/docker-entrypoint-initdb.d/16-migration_2026-08-22_korosho_sales_rep.sql
+      - ./migration_2026-08-22_korosho_employees.sql:/docker-entrypoint-initdb.d/17-migration_2026-08-22_korosho_employees.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 5s

@@ -246,10 +246,6 @@ function unitLabel($unit) {
 
 // Product catalog shared by inventory.php and admin_inventory.php
 const PRODUCT_CATALOG = [
-    'Cashew Nuts - Baked',
-    'Cashew Nuts - Mbichi (Raw)',
-    'Cashew Nuts - Roasted',
-    'Korosho vipande',
     'Liquid Soap (1L)',
     'Liquid Soap (1L) (6pc)',
     'Liquid Soap (5L)',
@@ -262,6 +258,17 @@ const PRODUCT_CATALOG = [
     'Z Series Tiles and Sink Cleaner (1L)',
     'Z Series Tiles and Sink Cleaner (1L) (6pc)',
     'Z Series Tiles and Sink Cleaner (5L)',
+];
+
+// Product catalog for the standalone Korosho module (korosho_inventory.php)
+const KOROSHO_PRODUCT_CATALOG = [
+    'Cashew Nuts - Baked',
+    'Cashew Nuts - Baked (Premium)',
+    'Cashew Nuts - Mbichi (Raw)',
+    'Cashew Nuts - Mbichi (Raw) (Premium)',
+    'Cashew Nuts - Roasted',
+    'Cashew Nuts - Roasted (Premium)',
+    'Korosho vipande',
 ];
 
 // Get setting

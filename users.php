@@ -50,7 +50,8 @@ $available_privileges = [
     'settings' => 'Settings',
     'users' => 'Users',
     'billiards' => 'Uzunguni Billiards',
-    'wifi_billing' => 'WiFi Billing'
+    'wifi_billing' => 'WiFi Billing',
+    'korosho' => 'Korosho'
 ];
 
 $msg = '';

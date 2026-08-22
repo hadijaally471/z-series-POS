@@ -115,6 +115,11 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
   <a href="wifi_billing.php" class="nav-item <?= $current_page==='wifi_billing'?'active':'' ?>"><span class="nav-icon">📶</span> WiFi Bundles</a>
   <?php endif; ?>
 
+  <div class="sidebar-section">Korosho</div>
+  <?php if(hasPrivilege('korosho')): ?>
+  <a href="korosho.php" class="nav-item <?= in_array($current_page,['korosho','korosho_pos','korosho_inventory','korosho_reports','korosho_customers','korosho_employees'],true)?'active':'' ?>"><span class="nav-icon">🥜</span> Korosho Sales</a>
+  <?php endif; ?>
+
   <div class="sidebar-section">Management</div>
   <?php if(hasPrivilege('reports')): ?>
   <a href="reports.php" class="nav-item <?= $current_page==='reports'?'active':'' ?>"><span class="nav-icon">📈</span> Reports</a>
