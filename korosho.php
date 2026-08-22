@@ -35,6 +35,16 @@ requirePrivilege('korosho');
     <div class="korosho-hub-title">Debt</div>
     <div class="korosho-hub-sub">Track and collect customer debts</div>
   </a>
+  <a href="korosho_purchase_orders.php" class="korosho-hub-card">
+    <div class="korosho-hub-icon">📋</div>
+    <div class="korosho-hub-title">Purchase Orders</div>
+    <div class="korosho-hub-sub">Record orders placed with suppliers</div>
+  </a>
+  <a href="korosho_expenses.php" class="korosho-hub-card">
+    <div class="korosho-hub-icon">🧾</div>
+    <div class="korosho-hub-title">Expenses</div>
+    <div class="korosho-hub-sub">Track transport, rent &amp; other costs</div>
+  </a>
 </div>
 
 <?php

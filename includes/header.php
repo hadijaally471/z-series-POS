@@ -117,7 +117,7 @@ $business_name = getSetting($conn, 'business_name') ?: 'Z-Series Products';
 
   <div class="sidebar-section">Korosho</div>
   <?php if(hasPrivilege('korosho')): ?>
-  <a href="korosho.php" class="nav-item <?= in_array($current_page,['korosho','korosho_pos','korosho_inventory','korosho_reports','korosho_customers','korosho_employees','korosho_debts'],true)?'active':'' ?>"><span class="nav-icon">🥜</span> Korosho Sales</a>
+  <a href="korosho.php" class="nav-item <?= in_array($current_page,['korosho','korosho_pos','korosho_inventory','korosho_reports','korosho_customers','korosho_employees','korosho_debts','korosho_purchase_orders','korosho_expenses'],true)?'active':'' ?>"><span class="nav-icon">🥜</span> Korosho Sales</a>
   <?php endif; ?>
 
   <div class="sidebar-section">Management</div>
