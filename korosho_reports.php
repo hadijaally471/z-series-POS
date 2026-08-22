@@ -271,7 +271,7 @@ $recent_sales = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <tbody>
     <?php foreach ($rep_breakdown_rows as $row): ?>
       <tr>
-        <td class="td-bold"><a href="?<?=http_build_query(array_merge($_GET, ['sales_rep_id' => $row['id']]))?>"><?=htmlspecialchars($row['name'])?></a></td>
+        <td class="td-bold"><a href="?<?=http_build_query(array_merge($_GET, ['sales_rep_id' => $row['id']]))?>" style="color:var(--purple2);text-decoration:none"><?=htmlspecialchars($row['name'])?></a></td>
         <td><?=number_format($row['kg'])?> kg</td>
         <td><?=number_format($row['cnt'])?></td>
         <td class="text-success"><?=tzs($row['revenue'])?></td>
