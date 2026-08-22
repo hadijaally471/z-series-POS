@@ -91,17 +91,15 @@ if ($period_type === 'daily') {
   $range_label = date('F Y', strtotime($range_start));
 }
 
-$stmt = $conn->prepare("SELECT COALESCE(SUM(total),0) as revenue, COUNT(*) as cnt FROM korosho_sales WHERE status='completed' AND DATE(created_at) BETWEEN ? AND ?");
+$stmt = $conn->prepare("SELECT COALESCE(SUM(total),0) as revenue FROM korosho_sales WHERE status='completed' AND DATE(created_at) BETWEEN ? AND ?");
 $stmt->bind_param('ss', $range_start, $range_end);
 $stmt->execute();
 $totals = $stmt->get_result()->fetch_assoc();
 
-$stmt = $conn->prepare("SELECT COALESCE(SUM(ksi.qty),0) as items, COALESCE(SUM(ksi.total - ksi.buying_price * ksi.qty),0) as profit FROM korosho_sale_items ksi JOIN korosho_sales ks ON ksi.sale_id=ks.id WHERE ks.status='completed' AND DATE(ks.created_at) BETWEEN ? AND ?");
+$stmt = $conn->prepare("SELECT COALESCE(SUM(ksi.total - ksi.buying_price * ksi.qty),0) as profit FROM korosho_sale_items ksi JOIN korosho_sales ks ON ksi.sale_id=ks.id WHERE ks.status='completed' AND DATE(ks.created_at) BETWEEN ? AND ?");
 $stmt->bind_param('ss', $range_start, $range_end);
 $stmt->execute();
-$itemTotals = $stmt->get_result()->fetch_assoc();
-$totals['items'] = $itemTotals['items'];
-$totals['profit'] = $itemTotals['profit'];
+$totals['profit'] = $stmt->get_result()->fetch_assoc()['profit'];
 
 // Revenue chart — hourly for a single day, daily for a week/month
 $chart_points = [];
@@ -141,6 +139,14 @@ $product_breakdown_rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $product_labels = json_encode(array_column($product_breakdown_rows, 'product_name'));
 $product_totals = json_encode(array_column($product_breakdown_rows, 'revenue'));
 
+// Daily buying/selling ledger for the period — same shape as the original
+// Date/Kg/Buying Price/Selling Price/Profit book, computed automatically
+// from real sales instead of hand-entered rows.
+$stmt = $conn->prepare("SELECT DATE(ks.created_at) as sale_date, COALESCE(SUM(ksi.qty),0) as kg, COALESCE(SUM(ksi.buying_price * ksi.qty),0) as buying, COALESCE(SUM(ksi.total),0) as selling, COALESCE(SUM(ksi.total - ksi.buying_price * ksi.qty),0) as profit FROM korosho_sale_items ksi JOIN korosho_sales ks ON ksi.sale_id=ks.id WHERE ks.status='completed' AND DATE(ks.created_at) BETWEEN ? AND ? GROUP BY DATE(ks.created_at) ORDER BY sale_date DESC");
+$stmt->bind_param('ss', $range_start, $range_end);
+$stmt->execute();
+$ledger_rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
 // Recent sales for the period
 $stmt = $conn->prepare("SELECT ks.*, u.name as cashier_name, e.name as sales_rep_name, (SELECT COUNT(*) FROM korosho_sale_items WHERE sale_id=ks.id) as item_count FROM korosho_sales ks LEFT JOIN users u ON ks.cashier_id=u.id LEFT JOIN korosho_employees e ON ks.sales_rep_id=e.id WHERE DATE(ks.created_at) BETWEEN ? AND ? ORDER BY ks.created_at DESC LIMIT 100");
 $stmt->bind_param('ss', $range_start, $range_end);
@@ -168,8 +174,6 @@ $recent_sales = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 <div class="stats-grid">
   <div class="stat-card purple"><div class="stat-label">Korosho Revenue</div><div class="stat-value"><?=tzs($totals['revenue'])?></div><div class="stat-sub">Separate from Z-Series revenue</div><div class="stat-icon">🥜</div></div>
-  <div class="stat-card green"><div class="stat-label">Units Sold</div><div class="stat-value"><?=number_format($totals['items'])?></div><div class="stat-icon"></div></div>
-  <div class="stat-card amber"><div class="stat-label">Transactions</div><div class="stat-value"><?=number_format($totals['cnt'])?></div><div class="stat-icon"></div></div>
   <?php if ($is_admin): ?>
   <div class="stat-card blue"><div class="stat-label">Profit</div><div class="stat-value"><?=tzs($totals['profit'])?></div><div class="stat-sub">Selling price − buying price</div><div class="stat-icon">💹</div></div>
   <?php endif; ?>
@@ -190,7 +194,7 @@ $recent_sales = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <?php foreach ($product_breakdown_rows as $row): ?>
       <tr>
         <td class="td-bold"><?=htmlspecialchars($row['product_name'])?></td>
-        <td><?=number_format($row['qty'])?></td>
+        <td><?=number_format($row['qty'])?> kg</td>
         <td class="text-success"><?=tzs($row['revenue'])?></td>
         <?php if ($is_admin): ?>
         <td class="text-muted"><?=tzs($row['cost'])?></td>
@@ -199,6 +203,27 @@ $recent_sales = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
       </tr>
     <?php endforeach; ?>
     <?php if (!$product_breakdown_rows): ?>
+      <tr><td colspan="<?=$is_admin?5:3?>" style="text-align:center;padding:22px;color:var(--text3)">No sales recorded for this period</td></tr>
+    <?php endif; ?>
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-header"><span class="card-title">Buying/Selling Ledger — <?=htmlspecialchars($range_label)?></span></div>
+  <div class="table-wrap reports-table-wrap"><table>
+    <thead><tr><th>Date</th><th>Kg</th><?php if ($is_admin): ?><th>Buying Price</th><?php endif; ?><th>Selling Price</th><?php if ($is_admin): ?><th>Profit</th><?php endif; ?></tr></thead>
+    <tbody>
+    <?php foreach ($ledger_rows as $row): ?>
+      <tr>
+        <td><?=date('M d, Y', strtotime($row['sale_date']))?></td>
+        <td><?=number_format($row['kg'])?> kg</td>
+        <?php if ($is_admin): ?><td class="text-muted"><?=tzs($row['buying'])?></td><?php endif; ?>
+        <td class="text-success"><?=tzs($row['selling'])?></td>
+        <?php if ($is_admin): ?><td class="<?=$row['profit']>=0?'text-success':'text-danger'?>"><?=tzs($row['profit'])?></td><?php endif; ?>
+      </tr>
+    <?php endforeach; ?>
+    <?php if (!$ledger_rows): ?>
       <tr><td colspan="<?=$is_admin?5:3?>" style="text-align:center;padding:22px;color:var(--text3)">No sales recorded for this period</td></tr>
     <?php endif; ?>
     </tbody>
