@@ -42,6 +42,7 @@ services:
       - ./migration_2026-08-22_korosho_buying_price.sql:/docker-entrypoint-initdb.d/15-migration_2026-08-22_korosho_buying_price.sql
       - ./migration_2026-08-22_korosho_sales_rep.sql:/docker-entrypoint-initdb.d/16-migration_2026-08-22_korosho_sales_rep.sql
       - ./migration_2026-08-22_korosho_employees.sql:/docker-entrypoint-initdb.d/17-migration_2026-08-22_korosho_employees.sql
+      - ./migration_2026-08-22_korosho_debts.sql:/docker-entrypoint-initdb.d/18-migration_2026-08-22_korosho_debts.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 5s

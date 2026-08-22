@@ -81,6 +81,7 @@ while ($r = $sales_reps_result->fetch_assoc()) $sales_reps[] = $r;
           <button class="pay-method active" id="korosho-pay-cash" onclick="koroshoSetPayMethod('cash')">Cash</button>
           <button class="pay-method" id="korosho-pay-lipa" onclick="koroshoSetPayMethod('lipa')">Lipa</button>
           <button class="pay-method" id="korosho-pay-bank" onclick="koroshoSetPayMethod('bank')">Bank</button>
+          <button class="pay-method" id="korosho-pay-debt" onclick="koroshoOpenDebtModal()">Debt</button>
         </div>
         <button class="pay-btn" style="margin-top:10px;width:100%" onclick="koroshoProcessSale()">Complete Sale & Print</button>
       </div>
@@ -103,10 +104,32 @@ while ($r = $sales_reps_result->fetch_assoc()) $sales_reps[] = $r;
   </div>
 </div>
 
+<!-- Debt Details Modal -->
+<div class="modal-overlay" id="korosho-debt-modal" data-dismiss="true">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <span class="modal-title">Debt Sale Details</span>
+      <button class="modal-close" onclick="closeModal('korosho-debt-modal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:14px;padding:14px;background:var(--bg3);border-radius:10px">
+        <div style="font-size:13px;color:var(--text2)">Total Sale: <strong id="korosho-debt-total-display" style="color:var(--text)"></strong></div>
+      </div>
+      <div class="form-group"><label class="form-label">Amount Paid Now (TZS)</label><input type="number" id="korosho-debt-amount-paid" class="form-control" value="0" min="0" oninput="koroshoUpdateDebtBalance()"/></div>
+      <div class="form-group"><label class="form-label">Remaining Balance</label><input type="text" id="korosho-debt-balance-display" class="form-control" readonly/></div>
+      <div class="form-group"><label class="form-label">Due Date *</label><input type="date" id="korosho-debt-due-date" class="form-control"/></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('korosho-debt-modal')">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="koroshoConfirmDebtModal()">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <?php
 $extra_js = <<<'JS'
 <script>
-let koroshoCart = [], koroshoPriceType = 'rejareja', koroshoPayMethod = 'cash';
+let koroshoCart = [], koroshoPriceType = 'rejareja', koroshoPayMethod = 'cash', koroshoDebtAmountPaid = 0, koroshoDebtDueDate = '';
 
 function koroshoFmt(n){return 'TZS '+(+n).toLocaleString();}
 
@@ -193,7 +216,41 @@ function koroshoSetPriceType(type){
 
 function koroshoSetPayMethod(m){
   koroshoPayMethod = m;
-  ['cash','lipa','bank'].forEach(x=>document.getElementById('korosho-pay-'+x).classList.toggle('active',x===m));
+  ['cash','lipa','bank','debt'].forEach(x=>document.getElementById('korosho-pay-'+x).classList.toggle('active',x===m));
+}
+
+function koroshoOpenDebtModal(){
+  if(!koroshoCart.length){showToast('Cart is empty!','error');return;}
+  if(!document.getElementById('korosho-customer-select').value){showToast('Select a customer for debt sales','error');return;}
+  const total = koroshoGetTotal();
+  document.getElementById('korosho-debt-total-display').textContent = koroshoFmt(total);
+  document.getElementById('korosho-debt-amount-paid').value = 0;
+  document.getElementById('korosho-debt-amount-paid').max = total;
+  document.getElementById('korosho-debt-balance-display').value = koroshoFmt(total);
+  const d = new Date(); d.setDate(d.getDate()+30);
+  document.getElementById('korosho-debt-due-date').value = d.toISOString().slice(0,10);
+  openModal('korosho-debt-modal');
+}
+
+function koroshoUpdateDebtBalance(){
+  const total = koroshoGetTotal();
+  let paid = +document.getElementById('korosho-debt-amount-paid').value || 0;
+  if(paid<0) paid = 0;
+  if(paid>total) paid = total;
+  document.getElementById('korosho-debt-balance-display').value = koroshoFmt(total-paid);
+}
+
+function koroshoConfirmDebtModal(){
+  const total = koroshoGetTotal();
+  let paid = +document.getElementById('korosho-debt-amount-paid').value || 0;
+  if(paid<0) paid = 0;
+  if(paid>total) paid = total;
+  const due = document.getElementById('korosho-debt-due-date').value;
+  if(!due){showToast('Due date is required','error');return;}
+  koroshoDebtAmountPaid = paid;
+  koroshoDebtDueDate = due;
+  koroshoSetPayMethod('debt');
+  closeModal('korosho-debt-modal');
 }
 
 function koroshoGetSubtotal(){ return koroshoCart.reduce((s,i)=>s+i[koroshoPriceType]*i.qty,0); }
@@ -225,7 +282,7 @@ function koroshoProcessSale(){
   fetch('api/korosho_sales.php', {
     method:'POST',
     headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-    body: JSON.stringify({cart:koroshoCart,priceType:koroshoPriceType,payMethod:koroshoPayMethod,discount,total,sub,customerId,customerName:customerId?customerName:'Walk-in',salesRepId})
+    body: JSON.stringify({cart:koroshoCart,priceType:koroshoPriceType,payMethod:koroshoPayMethod,discount,total,sub,customerId,customerName:customerId?customerName:'Walk-in',salesRepId,debtAmountPaid:koroshoPayMethod==='debt'?koroshoDebtAmountPaid:0,debtDueDate:koroshoPayMethod==='debt'?koroshoDebtDueDate:''})
   })
   .then(r=>r.json())
   .then(data=>{
@@ -236,6 +293,9 @@ function koroshoProcessSale(){
       document.getElementById('korosho-customer-select').value = '';
       document.getElementById('korosho-customer-search').value = '';
       document.getElementById('korosho-sales-rep-select').value = '';
+      koroshoDebtAmountPaid = 0;
+      koroshoDebtDueDate = '';
+      koroshoSetPayMethod('cash');
       koroshoRenderCart();
     } else showToast(data.message||'Error!','error');
   }).catch(()=>showToast('Connection error!','error'));

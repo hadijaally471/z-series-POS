@@ -30,6 +30,11 @@ requirePrivilege('korosho');
     <div class="korosho-hub-title">Employees</div>
     <div class="korosho-hub-sub">Manage Korosho's own Sales Reps</div>
   </a>
+  <a href="korosho_debts.php" class="korosho-hub-card">
+    <div class="korosho-hub-icon">💰</div>
+    <div class="korosho-hub-title">Debt</div>
+    <div class="korosho-hub-sub">Track and collect customer debts</div>
+  </a>
 </div>
 
 <?php
